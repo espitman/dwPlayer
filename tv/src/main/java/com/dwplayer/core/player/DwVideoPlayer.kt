@@ -9,6 +9,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
@@ -66,10 +67,29 @@ class DwVideoPlayer @Inject constructor(
             .build()
     }
 
+    private val smartMediaCodecSelector = MediaCodecSelector { mimeType, requiresSecure, requiresTunneling ->
+        val defaultDecoders = MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, requiresSecure, requiresTunneling)
+        if (defaultDecoders.isEmpty()) return@MediaCodecSelector emptyList()
+
+        val isEmulator = android.os.Build.HARDWARE.contains("goldfish", ignoreCase = true) ||
+                android.os.Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                android.os.Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                android.os.Build.MODEL.contains("sdk", ignoreCase = true) ||
+                android.os.Build.PRODUCT.contains("sdk", ignoreCase = true)
+
+        if (isEmulator) {
+            // Goldfish hardware decoders fail on 10-bit HEVC; software decoders (c2.android.hevc.decoder) decode perfectly
+            defaultDecoders.sortedByDescending { it.softwareOnly || it.name.startsWith("c2.android.") || it.name.startsWith("OMX.google.") }
+        } else {
+            defaultDecoders
+        }
+    }
+
     private val renderersFactory: DefaultRenderersFactory by lazy {
         DefaultRenderersFactory(context).apply {
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             setEnableDecoderFallback(true)
+            setMediaCodecSelector(smartMediaCodecSelector)
             setAllowedVideoJoiningTimeMs(5000)
             setEnableAudioFloatOutput(true)
             setEnableAudioTrackPlaybackParams(true)

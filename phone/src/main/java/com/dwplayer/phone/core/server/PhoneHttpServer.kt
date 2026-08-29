@@ -247,7 +247,7 @@ class PhoneHttpServer @Inject constructor(
             return
         }
 
-        val totalLength = pfd.statSize
+        val totalLength = if (pfd.statSize > 0) pfd.statSize else video.size
         val rangeHeader = call.request.headers[HttpHeaders.Range]
 
         var start = 0L
