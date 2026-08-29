@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -240,6 +241,9 @@ fun NetworkSharesScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 16.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
@@ -258,9 +262,19 @@ fun NetworkSharesScreen(
                                             )
                                         }
 
-                                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Text(text = server.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                                Text(
+                                                    text = server.name,
+                                                    color = Color.White,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
                                                 if (server.isAutoDiscovered) {
                                                     Box(
                                                         modifier = Modifier
@@ -272,7 +286,13 @@ fun NetworkSharesScreen(
                                                     }
                                                 }
                                             }
-                                            Text(text = server.serverUrl, color = TextSecondary, fontSize = 12.sp)
+                                            Text(
+                                                text = server.serverUrl,
+                                                color = TextSecondary,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
                                     }
 
@@ -326,6 +346,9 @@ fun NetworkSharesScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 16.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
@@ -339,9 +362,25 @@ fun NetworkSharesScreen(
                                             Icon(Icons.Default.FolderShared, contentDescription = null, tint = AccentSecondary, modifier = Modifier.size(24.dp))
                                         }
 
-                                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                            Text(text = share.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                            Text(text = "smb://${share.host}/${share.shareName}", color = TextSecondary, fontSize = 12.sp)
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Text(
+                                                text = share.name,
+                                                color = Color.White,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "smb://${share.host}/${share.shareName}",
+                                                color = TextSecondary,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
                                     }
 
@@ -395,6 +434,9 @@ fun NetworkSharesScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 16.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
@@ -408,9 +450,19 @@ fun NetworkSharesScreen(
                                             Icon(Icons.Default.WifiTethering, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(24.dp))
                                         }
 
-                                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Text(text = item.serviceName, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                                Text(
+                                                    text = item.serviceName,
+                                                    color = Color.White,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
                                                 Box(
                                                     modifier = Modifier
                                                         .clip(RoundedCornerShape(4.dp))
@@ -420,7 +472,13 @@ fun NetworkSharesScreen(
                                                     Text(item.deviceType, color = AccentSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                                 }
                                             }
-                                            Text(text = item.url, color = TextSecondary, fontSize = 12.sp)
+                                            Text(
+                                                text = item.url,
+                                                color = TextSecondary,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
                                     }
 
@@ -545,17 +603,22 @@ private fun WebDavBrowserView(
                                 onPlay(item)
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
                         containerColor = CardDark
                     ) {
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
@@ -571,20 +634,26 @@ private fun WebDavBrowserView(
                                         item.isVideo -> Color(0xFF10B981)
                                         else -> Color.White.copy(alpha = 0.4f)
                                     },
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
 
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
                                     Text(
                                         text = item.name,
                                         color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = item.formattedSize,
                                         color = TextSecondary,
-                                        fontSize = 11.sp
+                                        fontSize = 11.sp,
+                                        maxLines = 1
                                     )
                                 }
                             }
@@ -671,17 +740,22 @@ private fun SmbBrowserView(
                                 onPlay(item.path, item.name)
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
                         containerColor = CardDark
                     ) {
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
@@ -689,12 +763,27 @@ private fun SmbBrowserView(
                                     imageVector = if (item.isDirectory) Icons.Default.Folder else if (isVideo) Icons.Default.Movie else Icons.Default.InsertDriveFile,
                                     contentDescription = null,
                                     tint = if (item.isDirectory) AccentSecondary else if (isVideo) Color(0xFF10B981) else Color.White.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
 
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(text = item.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(text = if (item.isDirectory) "Folder" else "${item.size / (1024 * 1024)} MB", color = TextSecondary, fontSize = 11.sp)
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = item.name,
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (item.isDirectory) "Folder" else "${item.size / (1024 * 1024)} MB",
+                                        color = TextSecondary,
+                                        fontSize = 11.sp,
+                                        maxLines = 1
+                                    )
                                 }
                             }
 
