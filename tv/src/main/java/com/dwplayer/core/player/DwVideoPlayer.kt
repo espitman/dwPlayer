@@ -86,7 +86,11 @@ class DwVideoPlayer @Inject constructor(
     }
 
     private val renderersFactory: DefaultRenderersFactory by lazy {
-        DefaultRenderersFactory(context).apply {
+        object : DefaultRenderersFactory(context) {
+            override fun getCodecAdapterFactory(): androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory {
+                return androidx.media3.exoplayer.mediacodec.SynchronousMediaCodecAdapter.Factory()
+            }
+        }.apply {
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             setEnableDecoderFallback(true)
             setMediaCodecSelector(smartMediaCodecSelector)
