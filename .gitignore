@@ -11,6 +11,10 @@ captures/
 .cxx
 *.apk
 *.aab
+screenshots/
+*.png
+*.jpg
+*.jpeg
 screen*.png
 screen.png
 node_modules/
