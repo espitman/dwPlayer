@@ -24,9 +24,11 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.Icon
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
@@ -102,6 +104,9 @@ fun PlayerOverlayControls(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 24.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -116,24 +121,30 @@ fun PlayerOverlayControls(
                         }
                     }
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = uiState.title,
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "${uiState.resizeMode.displayName} • Speed ${uiState.playbackSpeed}x",
                             color = TextSecondary,
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
                 // Quick Settings (Subtitles, Audio, Aspect, Speed)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     PlayerTopButton(Icons.Default.Subtitles, "Subs") { showSubtitleDialog = true }
                     PlayerTopButton(Icons.Default.Audiotrack, "Audio") { showAudioDialog = true }
                     PlayerTopButton(Icons.Default.AspectRatio, "Aspect") { showAspectDialog = true }
@@ -444,6 +455,8 @@ private fun PlayerTopButton(icon: ImageVector, label: String, onClick: () -> Uni
                 color = Color.White,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
                 style = TextStyle(
                     platformStyle = PlatformTextStyle(includeFontPadding = false)
                 )
@@ -461,10 +474,13 @@ private fun TrackSelectionDialog(
     onSelect: (TrackInfo?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Box(
             modifier = Modifier
-                .width(380.dp)
+                .width(420.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(SurfaceDark)
                 .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
@@ -511,10 +527,13 @@ private fun <T> OptionDialog(
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Box(
             modifier = Modifier
-                .width(360.dp)
+                .width(420.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(SurfaceDark)
                 .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
