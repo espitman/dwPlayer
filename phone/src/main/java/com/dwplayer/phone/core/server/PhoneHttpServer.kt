@@ -22,6 +22,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
+import io.ktor.server.request.uri
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondOutputStream
@@ -36,6 +37,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.FileInputStream
+import java.net.URLDecoder
 import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -93,43 +95,70 @@ class PhoneHttpServer @Inject constructor(
                 }
 
                 routing {
-                    // WebDAV PROPFIND support for TV Player integration
+                    // WebDAV PROPFIND support for TV Player integration (with folder tree support)
                     route("{...}") {
                         handle {
                             if (call.request.httpMethod.value.equals("PROPFIND", ignoreCase = true)) {
-                                val videos = mediaScanner.getVideos()
-                                val folderName = folderPreferences.getFolderName()
+                                val rawUri = call.request.uri.substringBefore("?")
+                                val decodedUri = try { URLDecoder.decode(rawUri, "UTF-8") } catch (e: Exception) { rawUri }
+                                val subPath = decodedUri.removePrefix("/webdav").trim('/')
+
+                                val directoryItems = mediaScanner.listFolderContent(subPath)
+                                val currentFolderName = if (subPath.isBlank()) {
+                                    folderPreferences.getFolderName()
+                                } else {
+                                    subPath.substringAfterLast('/')
+                                }
+
                                 val sb = StringBuilder()
                                 sb.append("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n")
                                 sb.append("<D:multistatus xmlns:D=\"DAV:\">\n")
 
-                                // Root collection
+                                // Root / Current collection response
+                                val currentHref = if (subPath.isBlank()) "/" else "/$subPath/"
                                 sb.append("  <D:response>\n")
-                                sb.append("    <D:href>/</D:href>\n")
+                                sb.append("    <D:href>$currentHref</D:href>\n")
                                 sb.append("    <D:propstat>\n")
                                 sb.append("      <D:prop>\n")
-                                sb.append("        <D:displayname>${escapeXml(folderName)}</D:displayname>\n")
+                                sb.append("        <D:displayname>${escapeXml(currentFolderName)}</D:displayname>\n")
                                 sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
                                 sb.append("      </D:prop>\n")
                                 sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
                                 sb.append("    </D:propstat>\n")
                                 sb.append("  </D:response>\n")
 
-                                for (v in videos) {
-                                    val safeName = try { URLEncoder.encode(v.title, "UTF-8").replace("+", "%20") } catch (e: Exception) { v.title }
-                                    val safeHref = "/api/stream/${v.id}/$safeName"
-                                    sb.append("  <D:response>\n")
-                                    sb.append("    <D:href>$safeHref</D:href>\n")
-                                    sb.append("    <D:propstat>\n")
-                                    sb.append("      <D:prop>\n")
-                                    sb.append("        <D:displayname>${escapeXml(v.title)}</D:displayname>\n")
-                                    sb.append("        <D:getcontentlength>${v.size}</D:getcontentlength>\n")
-                                    sb.append("        <D:getcontenttype>${v.mimeType}</D:getcontenttype>\n")
-                                    sb.append("        <D:resourcetype/>\n")
-                                    sb.append("      </D:prop>\n")
-                                    sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
-                                    sb.append("    </D:propstat>\n")
-                                    sb.append("  </D:response>\n")
+                                for (item in directoryItems) {
+                                    if (item.name.startsWith(".")) continue
+
+                                    if (item.isDirectory) {
+                                        val dirHref = "/${item.relativePath}/"
+                                        sb.append("  <D:response>\n")
+                                        sb.append("    <D:href>$dirHref</D:href>\n")
+                                        sb.append("    <D:propstat>\n")
+                                        sb.append("      <D:prop>\n")
+                                        sb.append("        <D:displayname>${escapeXml(item.name)}</D:displayname>\n")
+                                        sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
+                                        sb.append("      </D:prop>\n")
+                                        sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
+                                        sb.append("    </D:propstat>\n")
+                                        sb.append("  </D:response>\n")
+                                    } else {
+                                        val v = item.mediaItem ?: continue
+                                        val safeName = try { URLEncoder.encode(v.title, "UTF-8").replace("+", "%20") } catch (e: Exception) { v.title }
+                                        val safeHref = "/api/stream/${v.id}/$safeName"
+                                        sb.append("  <D:response>\n")
+                                        sb.append("    <D:href>$safeHref</D:href>\n")
+                                        sb.append("    <D:propstat>\n")
+                                        sb.append("      <D:prop>\n")
+                                        sb.append("        <D:displayname>${escapeXml(v.title)}</D:displayname>\n")
+                                        sb.append("        <D:getcontentlength>${v.size}</D:getcontentlength>\n")
+                                        sb.append("        <D:getcontenttype>${v.mimeType}</D:getcontenttype>\n")
+                                        sb.append("        <D:resourcetype/>\n")
+                                        sb.append("      </D:prop>\n")
+                                        sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
+                                        sb.append("    </D:propstat>\n")
+                                        sb.append("  </D:response>\n")
+                                    }
                                 }
                                 sb.append("</D:multistatus>")
 

@@ -82,7 +82,8 @@ class SmbClientManager @Inject constructor() {
             val fileList = diskShare.list(normalizedPath)
             for (f in fileList) {
                 val fileName = f.fileName
-                if (fileName == "." || fileName == "..") continue
+                // Filter out empty or hidden files/folders (starting with .)
+                if (fileName.isNullOrBlank() || fileName.startsWith(".")) continue
 
                 val isDir = EnumWithValue.EnumUtils.isSet(f.fileAttributes, FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
                 val itemPath = if (normalizedPath.isEmpty()) fileName else "$normalizedPath\\$fileName"

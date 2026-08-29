@@ -20,6 +20,13 @@ data class MediaItem(
     val dateModified: Long
 )
 
+data class PhoneDirectoryItem(
+    val name: String,
+    val isDirectory: Boolean,
+    val relativePath: String,
+    val mediaItem: MediaItem? = null
+)
+
 @Singleton
 class PhoneMediaScanner @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -48,6 +55,86 @@ class PhoneMediaScanner @Inject constructor(
         sorted
     }
 
+    suspend fun listFolderContent(relativePath: String = ""): List<PhoneDirectoryItem> = withContext(Dispatchers.IO) {
+        val treeUri = folderPreferences.getFolderUri() ?: return@withContext emptyList()
+        val rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext emptyList()
+
+        val targetDir = resolveDirectory(rootDoc, relativePath) ?: return@withContext emptyList()
+        val result = mutableListOf<PhoneDirectoryItem>()
+        val files = targetDir.listFiles()
+
+        for (file in files) {
+            val name = file.name ?: ""
+            // Filter out hidden files and folders (starting with .)
+            if (name.isBlank() || name.startsWith(".")) continue
+
+            val cleanRelative = if (relativePath.isBlank()) name else "$relativePath/$name"
+
+            if (file.isDirectory) {
+                result.add(
+                    PhoneDirectoryItem(
+                        name = name,
+                        isDirectory = true,
+                        relativePath = cleanRelative
+                    )
+                )
+            } else if (file.isFile) {
+                val ext = name.substringAfterLast('.', "").lowercase()
+                val mime = file.type ?: ""
+                val isVideo = videoExtensions.contains(ext) || mime.startsWith("video/")
+
+                if (isVideo && file.length() > 0) {
+                    val id = (file.uri.toString().hashCode().toLong() and 0x7FFFFFFF)
+                    val item = MediaItem(
+                        id = id,
+                        title = name,
+                        uri = file.uri,
+                        size = file.length(),
+                        durationMs = 0L,
+                        mimeType = getAccurateMimeType(name, mime),
+                        dateModified = file.lastModified()
+                    )
+                    mediaCache[id] = item
+                    result.add(
+                        PhoneDirectoryItem(
+                            name = name,
+                            isDirectory = false,
+                            relativePath = cleanRelative,
+                            mediaItem = item
+                        )
+                    )
+                }
+            }
+        }
+
+        result.sortedWith(
+            compareByDescending<PhoneDirectoryItem> { it.isDirectory }
+                .thenBy { it.name.lowercase() }
+        )
+    }
+
+    private fun resolveDirectory(root: DocumentFile, relativePath: String): DocumentFile? {
+        val clean = relativePath.trim().removePrefix("/").removeSuffix("/")
+        if (clean.isBlank()) return root
+
+        val parts = clean.split("/")
+        var current: DocumentFile = root
+        for (part in parts) {
+            if (part.isBlank() || part == ".") continue
+            var nextDir: DocumentFile? = null
+            for (f in current.listFiles()) {
+                val fname = f.name ?: ""
+                if (f.isDirectory && !fname.startsWith(".") && fname.equals(part, ignoreCase = true)) {
+                    nextDir = f
+                    break
+                }
+            }
+            if (nextDir == null) return null
+            current = nextDir
+        }
+        return current
+    }
+
     private fun scanFolderRecursively(
         dir: DocumentFile,
         outList: MutableList<MediaItem>,
@@ -55,10 +142,13 @@ class PhoneMediaScanner @Inject constructor(
     ) {
         val files = dir.listFiles()
         for (file in files) {
+            val name = file.name ?: ""
+            // Filter out hidden files and folders (starting with .)
+            if (name.isBlank() || name.startsWith(".")) continue
+
             if (file.isDirectory) {
                 scanFolderRecursively(file, outList, outMap)
             } else if (file.isFile) {
-                val name = file.name ?: ""
                 val ext = name.substringAfterLast('.', "").lowercase()
                 val mime = file.type ?: ""
                 val isVideo = videoExtensions.contains(ext) || mime.startsWith("video/")

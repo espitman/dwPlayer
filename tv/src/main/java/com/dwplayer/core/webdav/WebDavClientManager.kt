@@ -170,7 +170,7 @@ class WebDavClientManager @Inject constructor() {
                     val normalizedHref = normalizePath(hrefDecoded)
 
                     // Skip the current queried directory itself
-                    if (normalizedHref == targetPathNorm || normalizedHref == "$targetPathNorm/") {
+                    if (normalizedHref == targetPathNorm) {
                         continue
                     }
 
@@ -195,10 +195,32 @@ class WebDavClientManager @Inject constructor() {
                         hrefDecoded.trimEnd('/').substringAfterLast('/')
                     }
 
-                    if (rawName.isBlank()) continue
+                    // Filter out empty or hidden files/folders (starting with .)
+                    if (rawName.isBlank() || rawName.startsWith(".")) continue
 
                     val ext = rawName.substringAfterLast('.', "").lowercase()
                     val isVideo = !isDirectory && VIDEO_EXTENSIONS.contains(ext)
+
+                    // Calculate relative path for subfolder navigation
+                    val basePathComponent = try {
+                        val uri = java.net.URI(baseUrl)
+                        uri.path?.trim('/') ?: ""
+                    } catch (e: Exception) {
+                        ""
+                    }
+
+                    var cleanRel = hrefDecoded.trim()
+                    if (cleanRel.startsWith("http://") || cleanRel.startsWith("https://")) {
+                        cleanRel = try { java.net.URI(cleanRel).path?.trim('/') ?: "" } catch (e: Exception) { cleanRel.substringAfter("://").substringAfter("/", "").trim('/') }
+                    } else {
+                        cleanRel = cleanRel.trim('/')
+                    }
+
+                    if (basePathComponent.isNotEmpty() && cleanRel.startsWith(basePathComponent)) {
+                        cleanRel = cleanRel.removePrefix(basePathComponent).trim('/')
+                    }
+
+                    val navPath = if (isDirectory) cleanRel else hrefDecoded
 
                     // Construct full video stream URL
                     val fullUrl = if (hrefRaw.startsWith("http://") || hrefRaw.startsWith("https://")) {
@@ -221,7 +243,7 @@ class WebDavClientManager @Inject constructor() {
                     result.add(
                         WebDavItem(
                             name = rawName,
-                            path = hrefDecoded,
+                            path = navPath,
                             fullUrl = fullUrl,
                             isDirectory = isDirectory,
                             size = size,
@@ -253,7 +275,11 @@ class WebDavClientManager @Inject constructor() {
     }
 
     private fun normalizePath(p: String): String {
-        return p.trim().removePrefix("http://").removePrefix("https://").substringAfter("/").trimEnd('/')
+        var clean = p.trim()
+        if (clean.startsWith("http://") || clean.startsWith("https://")) {
+            clean = clean.substringAfter("://").substringAfter("/", "")
+        }
+        return clean.trim('/')
     }
 
     private fun formatSize(bytes: Long): String {
