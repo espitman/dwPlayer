@@ -30,7 +30,8 @@ import javax.inject.Inject
 class DwVideoPlayer @Inject constructor(
     @ApplicationContext private val context: Context,
     private val smbClientManager: SmbClientManager,
-    private val playbackHistoryDao: PlaybackHistoryDao
+    private val playbackHistoryDao: PlaybackHistoryDao,
+    val subtitlePreferencesManager: SubtitlePreferencesManager
 ) {
     companion object {
         private const val TAG = "DwVideoPlayer"
@@ -38,6 +39,14 @@ class DwVideoPlayer @Inject constructor(
 
     private val playerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var positionJob: Job? = null
+
+    init {
+        playerScope.launch {
+            subtitlePreferencesManager.settings.collect { settings ->
+                _uiState.update { it.copy(subtitleSettings = settings) }
+            }
+        }
+    }
 
     val trackSelector: DefaultTrackSelector by lazy {
         DefaultTrackSelector(context).apply {

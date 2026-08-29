@@ -150,6 +150,29 @@ class PlayerActivity : ComponentActivity() {
                         },
                         update = { view ->
                             view.resizeMode = uiState.resizeMode.value
+
+                            // Apply Dynamic Subtitle Customization (Vazirmatn, Colors, Background, Size, Position)
+                            val subSettings = uiState.subtitleSettings
+                            val subtitleView = view.subtitleView
+                            if (subtitleView != null) {
+                                val typeface = subSettings.font.fontResId?.let {
+                                    androidx.core.content.res.ResourcesCompat.getFont(view.context, it)
+                                }
+                                val captionStyle = androidx.media3.ui.CaptionStyleCompat(
+                                    subSettings.color.colorInt,
+                                    subSettings.backgroundStyle.bgColorInt,
+                                    android.graphics.Color.TRANSPARENT,
+                                    subSettings.backgroundStyle.edgeType,
+                                    subSettings.backgroundStyle.edgeColorInt,
+                                    typeface
+                                )
+                                subtitleView.setStyle(captionStyle)
+                                subtitleView.setFixedTextSize(
+                                    android.util.TypedValue.COMPLEX_UNIT_SP,
+                                    subSettings.size.spSize
+                                )
+                                subtitleView.setBottomPaddingFraction(subSettings.position.bottomFraction)
+                            }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -188,6 +211,9 @@ class PlayerActivity : ComponentActivity() {
                         },
                         onSelectAudioTrack = { videoPlayer.selectAudioTrack(it) },
                         onSelectSubtitleTrack = { videoPlayer.selectSubtitleTrack(it) },
+                        onUpdateSubtitleSettings = {
+                            videoPlayer.subtitlePreferencesManager.updateSettings(it)
+                        },
                         onSelectResizeMode = { videoPlayer.setResizeMode(it) },
                         onSelectPlaybackSpeed = { videoPlayer.setPlaybackSpeed(it) },
                         onClosePlayer = { finish() },
@@ -244,6 +270,7 @@ class PlayerActivity : ComponentActivity() {
                     true
                 }
             }
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                 if (!isControlsVisible) {
                     resetControlsTimeout()

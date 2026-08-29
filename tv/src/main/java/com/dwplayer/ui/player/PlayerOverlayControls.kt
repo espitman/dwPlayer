@@ -34,9 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import com.dwplayer.core.player.PlayerUiState
-import com.dwplayer.core.player.TrackInfo
-import com.dwplayer.core.player.VideoResizeMode
+import com.dwplayer.core.player.*
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
 
@@ -57,6 +55,7 @@ fun PlayerOverlayControls(
     onSeekBackward: () -> Unit,
     onSelectAudioTrack: (TrackInfo) -> Unit,
     onSelectSubtitleTrack: (TrackInfo?) -> Unit,
+    onUpdateSubtitleSettings: (SubtitleSettings) -> Unit = {},
     onSelectResizeMode: (VideoResizeMode) -> Unit,
     onSelectPlaybackSpeed: (Float) -> Unit,
     onClosePlayer: () -> Unit,
@@ -292,15 +291,12 @@ fun PlayerOverlayControls(
 
     // Modal Dialogs
     if (showSubtitleDialog) {
-        TrackSelectionDialog(
-            title = "Subtitles",
-            tracks = uiState.subtitleTracks,
-            selectedIndex = uiState.currentSubtitleIndex,
-            allowDisable = true,
-            onSelect = {
-                onSelectSubtitleTrack(it)
-                showSubtitleDialog = false
-            },
+        SubtitleSettingsDialog(
+            subtitleTracks = uiState.subtitleTracks,
+            selectedTrackIndex = uiState.currentSubtitleIndex,
+            settings = uiState.subtitleSettings,
+            onSelectTrack = { onSelectSubtitleTrack(it) },
+            onUpdateSettings = { onUpdateSubtitleSettings(it) },
             onDismiss = { showSubtitleDialog = false }
         )
     }

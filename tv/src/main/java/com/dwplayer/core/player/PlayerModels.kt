@@ -37,5 +37,6 @@ data class PlayerUiState(
     val resizeMode: VideoResizeMode = VideoResizeMode.FIT,
     val isControlsVisible: Boolean = true,
     val isEnded: Boolean = false,
+    val subtitleSettings: SubtitleSettings = SubtitleSettings(),
     val errorMessage: String? = null
 )
