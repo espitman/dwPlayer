@@ -11,15 +11,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Icon
 import androidx.tv.material3.Text
 import com.dwplayer.data.entities.DownloadTaskEntity
@@ -44,6 +48,7 @@ fun HomeScreen(
     onOpenAddDialog: () -> Unit,
     onClearHistory: () -> Unit = {}
 ) {
+    var showClearHistoryConfirm by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -143,7 +148,7 @@ fun HomeScreen(
                         )
 
                         FocusableCard(
-                            onClick = onClearHistory,
+                            onClick = { showClearHistoryConfirm = true },
                             containerColor = Color.Transparent,
                             focusedContainerColor = Color(0xFFEF4444).copy(alpha = 0.25f)
                         ) {
@@ -248,6 +253,16 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showClearHistoryConfirm) {
+        ClearHistoryConfirmDialog(
+            onDismiss = { showClearHistoryConfirm = false },
+            onConfirmClear = {
+                showClearHistoryConfirm = false
+                onClearHistory()
+            }
+        )
     }
 }
 
@@ -521,4 +536,93 @@ private fun formatTime(ms: Long): String {
     val m = sec / 60
     val s = sec % 60
     return String.format("%02d:%02d", m, s)
+}
+
+@Composable
+private fun ClearHistoryConfirmDialog(
+    onDismiss: () -> Unit,
+    onConfirmClear: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .width(420.dp)
+                .background(SurfaceDark, RoundedCornerShape(20.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .padding(24.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(AccentRose.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.DeleteSweep, null, tint = AccentRose, modifier = Modifier.size(26.dp))
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Clear Watch History?",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "This will remove all resume progress and clear the Continue Watching section.",
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 16.sp
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    FocusableCard(
+                        onClick = onConfirmClear,
+                        containerColor = AccentRose,
+                        focusedContainerColor = Color(0xFFE11D48),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Clear History",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                            )
+                        }
+                    }
+
+                    FocusableCard(
+                        onClick = onDismiss,
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Cancel",
+                                color = TextSecondary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

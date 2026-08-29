@@ -175,7 +175,8 @@ fun MediaArchiveScreen(
                 items(files, key = { it.path }) { file ->
                     ArchiveFileCard(
                         file = file,
-                        onClick = { selectedActionFile = file }
+                        onClick = { onPlayFile(file) },
+                        onLongClick = { selectedActionFile = file }
                     )
                 }
             }
@@ -214,7 +215,8 @@ fun MediaArchiveScreen(
 @Composable
 private fun ArchiveFileCard(
     file: LocalArchiveFile,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     val dateStr = remember(file.lastModified) {
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(file.lastModified))
@@ -222,6 +224,7 @@ private fun ArchiveFileCard(
 
     FocusableCard(
         onClick = onClick,
+        onLongClick = onLongClick,
         containerColor = CardDark.copy(alpha = 0.55f),
         focusedContainerColor = CardDark.copy(alpha = 0.95f),
         modifier = Modifier.fillMaxWidth()
@@ -243,9 +246,9 @@ private fun ArchiveFileCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.linearGradient(listOf(AccentPrimary.copy(alpha = 0.8f), Color(0xFF4F46E5)))
-                        ),
+                    .background(
+                        Brush.linearGradient(listOf(AccentPrimary.copy(alpha = 0.8f), Color(0xFF4F46E5)))
+                    ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -307,6 +310,8 @@ private fun ArchiveFileCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Text("Hold for Options", color = TextTertiary, fontSize = 10.sp)
+                Spacer(modifier = Modifier.width(2.dp))
                 Box(
                     modifier = Modifier
                         .background(AccentPrimary.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
@@ -318,20 +323,6 @@ private fun ArchiveFileCard(
                     ) {
                         Icon(Icons.Default.PlayArrow, null, tint = AccentSecondary, modifier = Modifier.size(14.dp))
                         Text("Play", color = AccentSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .background(AccentRose.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(Icons.Default.DeleteOutline, null, tint = AccentRose, modifier = Modifier.size(14.dp))
-                        Text("Delete", color = AccentRose, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
