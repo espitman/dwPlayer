@@ -132,19 +132,19 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
 }
 
-tasks.register('copyReleaseApkToDesktop', Copy) {
-    def releaseApk = file("${buildDir}/outputs/apk/release/app-release.apk")
-    def desktopDir = new File(System.getProperty("user.home"), "Desktop")
-    from(releaseApk)
-    into(desktopDir)
-    rename { String fileName -> "dwplayer-release.apk" }
-    doFirst {
-        if (!releaseApk.exists()) {
-            throw new GradleException("Release APK not found at ${releaseApk}")
-        }
-    }
+tasks.register('copyReleaseApkToDesktop') {
+    dependsOn 'assembleRelease'
     doLast {
-        println "Release APK automatically copied to: ${desktopDir.absolutePath}/dwplayer-release.apk"
+        def desktopDir = new File(System.getProperty("user.home"), "Desktop")
+        def releaseApk = file("${buildDir}/outputs/apk/release/tv-release.apk")
+        if (!releaseApk.exists()) {
+            releaseApk = file("${buildDir}/outputs/apk/release/app-release.apk")
+        }
+        if (releaseApk.exists()) {
+            def destFile = new File(desktopDir, "dwplayer-release.apk")
+            destFile.bytes = releaseApk.bytes
+            println "Release APK automatically copied to: ${destFile.absolutePath}"
+        }
     }
 }
 
