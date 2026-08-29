@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
 import com.dwplayer.data.entities.SmbShareEntity
 import com.dwplayer.data.entities.WebDavServerEntity
@@ -867,10 +868,13 @@ private fun AddWebDavDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isTesting by remember { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Box(
             modifier = Modifier
-                .width(480.dp)
+                .width(640.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(BgDark)
                 .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
@@ -948,10 +952,13 @@ private fun AddSmbShareDialog(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Box(
             modifier = Modifier
-                .width(480.dp)
+                .width(640.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(BgDark)
                 .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
