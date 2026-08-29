@@ -56,8 +56,8 @@ fun PlaylistsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(top = 28.dp, bottom = 16.dp, start = 24.dp, end = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Header
         Row(
@@ -65,37 +65,33 @@ fun PlaylistsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column {
                 Text(
                     text = "PLAYLISTS & SERIES",
-                    color = AccentCyan,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp,
-                    style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                )
-                Text(
-                    text = "Organized Movie & Series Sequences",
                     color = Color.White,
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "Organize movie collections, series sequences and video queues",
+                    color = TextSecondary,
+                    fontSize = 12.sp
                 )
             }
 
             FocusableCard(
                 onClick = onOpenAddDialog,
                 containerColor = AccentPrimary,
-                focusedContainerColor = AccentSecondary,
-                modifier = Modifier.height(40.dp)
+                focusedContainerColor = AccentSecondary
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.AddLink, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Text("Add to Series", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.AddLink, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Text("Add to Series", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

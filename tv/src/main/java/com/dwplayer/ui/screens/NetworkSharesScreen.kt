@@ -112,8 +112,8 @@ fun NetworkSharesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 36.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Header & Actions
         Row(
@@ -144,9 +144,9 @@ fun NetworkSharesScreen(
                         focusedContainerColor = AccentSecondary
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Text("Add WebDAV", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -159,9 +159,9 @@ fun NetworkSharesScreen(
                         focusedContainerColor = AccentSecondary
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Text("Add SMB", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
