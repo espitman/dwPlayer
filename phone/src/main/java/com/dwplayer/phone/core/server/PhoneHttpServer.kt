@@ -11,6 +11,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
@@ -31,10 +32,23 @@ import io.ktor.server.routing.routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.FileInputStream
+import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
+
+@Serializable
+data class PhoneMediaDto(
+    val id: String,
+    val title: String,
+    val size: Long,
+    val durationMs: Long,
+    val streamUrl: String,
+    val mimeType: String
+)
 
 @Singleton
 class PhoneHttpServer @Inject constructor(
@@ -64,9 +78,11 @@ class PhoneHttpServer @Inject constructor(
                     allowHeader(HttpHeaders.ContentType)
                     allowHeader(HttpHeaders.Authorization)
                     allowHeader(HttpHeaders.Range)
+                    allowHeader(HttpHeaders.AcceptRanges)
                     allowMethod(HttpMethod.Get)
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Options)
+                    allowMethod(HttpMethod("PROPFIND"))
                 }
                 install(AutoHeadResponse)
                 install(StatusPages) {
@@ -100,7 +116,8 @@ class PhoneHttpServer @Inject constructor(
                                 sb.append("  </D:response>\n")
 
                                 for (v in videos) {
-                                    val safeHref = "/api/stream/${v.id}"
+                                    val safeName = try { URLEncoder.encode(v.title, "UTF-8").replace("+", "%20") } catch (e: Exception) { v.title }
+                                    val safeHref = "/api/stream/${v.id}/$safeName"
                                     sb.append("  <D:response>\n")
                                     sb.append("    <D:href>$safeHref</D:href>\n")
                                     sb.append("    <D:propstat>\n")
@@ -129,104 +146,26 @@ class PhoneHttpServer @Inject constructor(
                     get("/api/media") {
                         val videos = mediaScanner.getVideos()
                         val result = videos.map { v ->
-                            mapOf(
-                                "id" to v.id.toString(),
-                                "title" to v.title,
-                                "size" to v.size,
-                                "durationMs" to v.durationMs,
-                                "streamUrl" to "/api/stream/${v.id}",
-                                "mimeType" to v.mimeType
+                            val safeName = try { URLEncoder.encode(v.title, "UTF-8").replace("+", "%20") } catch (e: Exception) { v.title }
+                            PhoneMediaDto(
+                                id = v.id.toString(),
+                                title = v.title,
+                                size = v.size,
+                                durationMs = v.durationMs,
+                                streamUrl = "/api/stream/${v.id}/$safeName",
+                                mimeType = v.mimeType
                             )
                         }
-                        call.respond(result)
+                        val json = Json.encodeToString(result)
+                        call.respondText(json, ContentType.Application.Json)
                     }
 
-                    // Stream media with full HTTP Range (206 Partial Content) support
+                    // Stream media with instant seeking via HTTP Range (206 Partial Content)
                     get("/api/stream/{id}") {
-                        val idStr = call.parameters["id"]
-                        val id = idStr?.toLongOrNull()
-                        if (id == null) {
-                            call.respond(HttpStatusCode.BadRequest, "Invalid media ID")
-                            return@get
-                        }
-
-                        val video = mediaScanner.getVideos().find { it.id == id }
-                        if (video == null) {
-                            call.respond(HttpStatusCode.NotFound, "Media not found in shared folder")
-                            return@get
-                        }
-
-                        val pfd: ParcelFileDescriptor? = try {
-                            this@PhoneHttpServer.context.contentResolver.openFileDescriptor(video.uri, "r")
-                        } catch (e: Exception) {
-                            null
-                        }
-
-                        if (pfd == null) {
-                            call.respond(HttpStatusCode.NotFound, "Cannot open video file stream")
-                            return@get
-                        }
-
-                        val totalLength = pfd.statSize
-                        val rangeHeader = call.request.headers[HttpHeaders.Range]
-
-                        var start = 0L
-                        var end = totalLength - 1
-
-                        if (!rangeHeader.isNullOrBlank() && rangeHeader.startsWith("bytes=")) {
-                            val ranges = rangeHeader.removePrefix("bytes=").split("-")
-                            val rStart = ranges.getOrNull(0)?.toLongOrNull()
-                            val rEnd = ranges.getOrNull(1)?.toLongOrNull()
-
-                            if (rStart != null) {
-                                start = rStart
-                            }
-                            if (rEnd != null && rEnd < totalLength) {
-                                end = rEnd
-                            }
-                        }
-
-                        val contentLength = (end - start) + 1
-                        val contentType = ContentType.parse(video.mimeType)
-
-                        call.response.header(HttpHeaders.AcceptRanges, "bytes")
-                        call.response.header(HttpHeaders.ContentLength, contentLength.toString())
-
-                        if (rangeHeader != null) {
-                            call.response.header(HttpHeaders.ContentRange, "bytes $start-$end/$totalLength")
-                            call.respondOutputStream(
-                                contentType = contentType,
-                                status = HttpStatusCode.PartialContent
-                            ) {
-                                val fis = FileInputStream(pfd.fileDescriptor)
-                                fis.channel.position(start)
-                                val buffer = ByteArray(64 * 1024)
-                                var remaining = contentLength
-                                while (remaining > 0) {
-                                    val toRead = minOf(buffer.size.toLong(), remaining).toInt()
-                                    val read = fis.read(buffer, 0, toRead)
-                                    if (read <= 0) break
-                                    write(buffer, 0, read)
-                                    remaining -= read
-                                }
-                                fis.close()
-                                pfd.close()
-                            }
-                        } else {
-                            call.respondOutputStream(
-                                contentType = contentType,
-                                status = HttpStatusCode.OK
-                            ) {
-                                val fis = FileInputStream(pfd.fileDescriptor)
-                                val buffer = ByteArray(64 * 1024)
-                                var read: Int
-                                while (fis.read(buffer).also { read = it } > 0) {
-                                    write(buffer, 0, read)
-                                }
-                                fis.close()
-                                pfd.close()
-                            }
-                        }
+                        handleStream(call)
+                    }
+                    get("/api/stream/{id}/{name}") {
+                        handleStream(call)
                     }
 
                     // Web Browser Companion Dashboard
@@ -251,6 +190,105 @@ class PhoneHttpServer @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start HTTP server", e)
             isRunning = false
+        }
+    }
+
+    private suspend fun handleStream(call: ApplicationCall) {
+        val idStr = call.parameters["id"]
+        val id = idStr?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid media ID")
+            return
+        }
+
+        val video = mediaScanner.findMediaById(id)
+        if (video == null) {
+            call.respond(HttpStatusCode.NotFound, "Media not found in shared folder")
+            return
+        }
+
+        val pfd: ParcelFileDescriptor? = try {
+            this@PhoneHttpServer.context.contentResolver.openFileDescriptor(video.uri, "r")
+        } catch (e: Exception) {
+            null
+        }
+
+        if (pfd == null) {
+            call.respond(HttpStatusCode.NotFound, "Cannot open video file stream")
+            return
+        }
+
+        val totalLength = pfd.statSize
+        val rangeHeader = call.request.headers[HttpHeaders.Range]
+
+        var start = 0L
+        var end = totalLength - 1
+
+        if (!rangeHeader.isNullOrBlank() && rangeHeader.startsWith("bytes=")) {
+            val rangeValue = rangeHeader.removePrefix("bytes=").trim()
+            val parts = rangeValue.split("-")
+            val rStart = parts.getOrNull(0)?.trim()?.toLongOrNull()
+            val rEnd = parts.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }?.toLongOrNull()
+
+            if (rStart != null) {
+                start = rStart
+            }
+            if (rEnd != null && rEnd < totalLength) {
+                end = rEnd
+            }
+        }
+
+        val contentLength = (end - start) + 1
+        val contentType = try {
+            ContentType.parse(video.mimeType)
+        } catch (e: Exception) {
+            ContentType.Application.OctetStream
+        }
+
+        call.response.header(HttpHeaders.AcceptRanges, "bytes")
+
+        if (rangeHeader != null) {
+            call.response.header(HttpHeaders.ContentLength, contentLength.toString())
+            call.response.header(HttpHeaders.ContentRange, "bytes $start-$end/$totalLength")
+            call.respondOutputStream(
+                contentType = contentType,
+                status = HttpStatusCode.PartialContent
+            ) {
+                val fis = FileInputStream(pfd.fileDescriptor)
+                try {
+                    fis.channel.position(start)
+                    val buffer = ByteArray(64 * 1024)
+                    var remaining = contentLength
+                    while (remaining > 0) {
+                        val toRead = minOf(buffer.size.toLong(), remaining).toInt()
+                        val read = fis.read(buffer, 0, toRead)
+                        if (read <= 0) break
+                        write(buffer, 0, read)
+                        remaining -= read
+                    }
+                } finally {
+                    try { fis.close() } catch (_: Exception) {}
+                    try { pfd.close() } catch (_: Exception) {}
+                }
+            }
+        } else {
+            call.response.header(HttpHeaders.ContentLength, totalLength.toString())
+            call.respondOutputStream(
+                contentType = contentType,
+                status = HttpStatusCode.OK
+            ) {
+                val fis = FileInputStream(pfd.fileDescriptor)
+                try {
+                    val buffer = ByteArray(64 * 1024)
+                    var read: Int
+                    while (fis.read(buffer).also { read = it } > 0) {
+                        write(buffer, 0, read)
+                    }
+                } finally {
+                    try { fis.close() } catch (_: Exception) {}
+                    try { pfd.close() } catch (_: Exception) {}
+                }
+            }
         }
     }
 

@@ -6,6 +6,7 @@ import androidx.documentfile.provider.DocumentFile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,21 +26,37 @@ class PhoneMediaScanner @Inject constructor(
     private val folderPreferences: FolderPreferences
 ) {
     private val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "webm", "ts", "m4v", "flv", "wmv", "3gp")
+    private val mediaCache = ConcurrentHashMap<Long, MediaItem>()
+    @Volatile private var cachedList: List<MediaItem> = emptyList()
 
-    suspend fun getVideos(): List<MediaItem> = withContext(Dispatchers.IO) {
+    suspend fun getVideos(forceRefresh: Boolean = false): List<MediaItem> = withContext(Dispatchers.IO) {
+        if (!forceRefresh && cachedList.isNotEmpty()) {
+            return@withContext cachedList
+        }
+
         val treeUri = folderPreferences.getFolderUri() ?: return@withContext emptyList()
         val rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext emptyList()
 
         val videos = mutableListOf<MediaItem>()
-        scanFolderRecursively(rootDoc, videos)
-        videos.sortedBy { it.title.lowercase() }
+        val newMap = ConcurrentHashMap<Long, MediaItem>()
+        scanFolderRecursively(rootDoc, videos, newMap)
+        val sorted = videos.sortedBy { it.title.lowercase() }
+        
+        mediaCache.clear()
+        mediaCache.putAll(newMap)
+        cachedList = sorted
+        sorted
     }
 
-    private fun scanFolderRecursively(dir: DocumentFile, outList: MutableList<MediaItem>) {
+    private fun scanFolderRecursively(
+        dir: DocumentFile,
+        outList: MutableList<MediaItem>,
+        outMap: ConcurrentHashMap<Long, MediaItem>
+    ) {
         val files = dir.listFiles()
         for (file in files) {
             if (file.isDirectory) {
-                scanFolderRecursively(file, outList)
+                scanFolderRecursively(file, outList, outMap)
             } else if (file.isFile) {
                 val name = file.name ?: ""
                 val ext = name.substringAfterLast('.', "").lowercase()
@@ -48,27 +65,37 @@ class PhoneMediaScanner @Inject constructor(
 
                 if (isVideo && file.length() > 0) {
                     val id = (file.uri.toString().hashCode().toLong() and 0x7FFFFFFF)
-                    outList.add(
-                        MediaItem(
-                            id = id,
-                            title = name,
-                            uri = file.uri,
-                            size = file.length(),
-                            durationMs = 0L,
-                            mimeType = if (mime.isNotBlank()) mime else "video/mp4",
-                            dateModified = file.lastModified()
-                        )
+                    val item = MediaItem(
+                        id = id,
+                        title = name,
+                        uri = file.uri,
+                        size = file.length(),
+                        durationMs = 0L,
+                        mimeType = getAccurateMimeType(name, mime),
+                        dateModified = file.lastModified()
                     )
+                    outList.add(item)
+                    outMap[id] = item
                 }
             }
         }
     }
 
     fun findMediaById(id: Long): MediaItem? {
-        val treeUri = folderPreferences.getFolderUri() ?: return null
-        val rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return null
-        val videos = mutableListOf<MediaItem>()
-        scanFolderRecursively(rootDoc, videos)
-        return videos.find { it.id == id }
+        return mediaCache[id] ?: cachedList.find { it.id == id }
+    }
+
+    private fun getAccurateMimeType(name: String, fallbackMime: String): String {
+        val ext = name.substringAfterLast('.', "").lowercase()
+        return when (ext) {
+            "mkv" -> "video/x-matroska"
+            "mp4", "m4v" -> "video/mp4"
+            "avi" -> "video/x-msvideo"
+            "webm" -> "video/webm"
+            "ts" -> "video/mp2t"
+            "mov" -> "video/quicktime"
+            "flv" -> "video/x-flv"
+            else -> if (fallbackMime.isNotBlank()) fallbackMime else "video/mp4"
+        }
     }
 }

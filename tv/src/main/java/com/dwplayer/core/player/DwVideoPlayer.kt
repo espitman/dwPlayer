@@ -142,10 +142,29 @@ class DwVideoPlayer @Inject constructor(
             )
         }
 
+        val extractorsFactory = androidx.media3.extractor.DefaultExtractorsFactory()
+            .setConstantBitrateSeekingEnabled(true)
+
+        val mediaItemBuilder = MediaItem.Builder().setUri(Uri.parse(mediaUri))
+        val ext = (title.takeIf { it.contains(".") } ?: mediaUri).substringAfterLast('.', "").substringBefore('?').substringBefore('/').lowercase()
+        val mime = when (ext) {
+            "mkv" -> "video/x-matroska"
+            "mp4", "m4v" -> "video/mp4"
+            "avi" -> "video/x-msvideo"
+            "webm" -> "video/webm"
+            "ts" -> "video/mp2t"
+            "mov" -> "video/quicktime"
+            else -> null
+        }
+        if (mime != null) {
+            mediaItemBuilder.setMimeType(mime)
+        }
+        val builtMediaItem = mediaItemBuilder.build()
+
         val mediaSource: MediaSource = if (isSmb && smbShare != null && smbFilePath != null) {
             val smbFactory = SmbDataSourceFactory(smbClientManager, smbShare, smbFilePath)
-            ProgressiveMediaSource.Factory(smbFactory)
-                .createMediaSource(MediaItem.fromUri(Uri.parse(mediaUri)))
+            ProgressiveMediaSource.Factory(smbFactory, extractorsFactory)
+                .createMediaSource(builtMediaItem)
         } else {
             val defaultFactory = if (!authHeader.isNullOrBlank()) {
                 val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
@@ -154,8 +173,8 @@ class DwVideoPlayer @Inject constructor(
             } else {
                 DefaultDataSource.Factory(context)
             }
-            DefaultMediaSourceFactory(defaultFactory)
-                .createMediaSource(MediaItem.fromUri(Uri.parse(mediaUri)))
+            DefaultMediaSourceFactory(defaultFactory, extractorsFactory)
+                .createMediaSource(builtMediaItem)
         }
 
         exoPlayer.setMediaSource(mediaSource)
