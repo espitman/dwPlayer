@@ -30,6 +30,9 @@ class MainViewModel @Inject constructor(
     private val smbShareDao: SmbShareDao,
     private val playbackHistoryDao: PlaybackHistoryDao,
     private val playlistDao: com.dwplayer.data.daos.PlaylistDao,
+    private val webDavServerDao: com.dwplayer.data.daos.WebDavServerDao,
+    private val webDavClientManager: com.dwplayer.core.webdav.WebDavClientManager,
+    private val networkDiscoveryManager: com.dwplayer.core.discovery.NetworkDiscoveryManager,
     val downloadManager: DwDownloadManager,
     private val storageManager: StorageManager,
     private val smbClientManager: SmbClientManager
@@ -45,6 +48,11 @@ class MainViewModel @Inject constructor(
 
     val smbShares: StateFlow<List<SmbShareEntity>> = smbShareDao.getAllShares()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val webDavServers: StateFlow<List<com.dwplayer.data.entities.WebDavServerEntity>> = webDavServerDao.getAllServersFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val discoveredServers: StateFlow<List<com.dwplayer.data.models.DiscoveredServerDto>> = networkDiscoveryManager.discoveredServers
 
     val playbackHistory: StateFlow<List<PlaybackHistoryEntity>> = playbackHistoryDao.getAllHistory()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -70,6 +78,22 @@ class MainViewModel @Inject constructor(
 
     private val _isSmbLoading = MutableStateFlow(false)
     val isSmbLoading: StateFlow<Boolean> = _isSmbLoading.asStateFlow()
+
+    // WebDAV Explorer State
+    private val _currentWebDavServer = MutableStateFlow<com.dwplayer.data.entities.WebDavServerEntity?>(null)
+    val currentWebDavServer: StateFlow<com.dwplayer.data.entities.WebDavServerEntity?> = _currentWebDavServer.asStateFlow()
+
+    private val _currentWebDavPath = MutableStateFlow("")
+    val currentWebDavPath: StateFlow<String> = _currentWebDavPath.asStateFlow()
+
+    private val _webDavItems = MutableStateFlow<List<com.dwplayer.data.models.WebDavItem>>(emptyList())
+    val webDavItems: StateFlow<List<com.dwplayer.data.models.WebDavItem>> = _webDavItems.asStateFlow()
+
+    private val _isWebDavLoading = MutableStateFlow(false)
+    val isWebDavLoading: StateFlow<Boolean> = _isWebDavLoading.asStateFlow()
+
+    private val _webDavError = MutableStateFlow<String?>(null)
+    val webDavError: StateFlow<String?> = _webDavError.asStateFlow()
 
     init {
         detectLocalIp()
@@ -267,5 +291,90 @@ class MainViewModel @Inject constructor(
         // Enqueue stream URL
         // SMB file direct download to TV
         enqueueDownload("smb://${share.id}/${item.path}", item.name)
+    }
+
+    // WebDAV Methods
+    fun addWebDavServer(
+        name: String,
+        url: String,
+        username: String?,
+        password: String?,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val testResult = webDavClientManager.testConnection(url, username, password)
+            if (testResult.isSuccess) {
+                val entity = com.dwplayer.data.entities.WebDavServerEntity(
+                    name = name.trim(),
+                    serverUrl = url.trim(),
+                    username = username?.takeIf { it.isNotBlank() },
+                    password = password?.takeIf { it.isNotBlank() }
+                )
+                webDavServerDao.insertServer(entity)
+                onResult(true, "Server added successfully")
+            } else {
+                onResult(false, testResult.exceptionOrNull()?.message ?: "Connection failed")
+            }
+        }
+    }
+
+    fun addDiscoveredServer(discovered: com.dwplayer.data.models.DiscoveredServerDto) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val entity = com.dwplayer.data.entities.WebDavServerEntity(
+                name = discovered.serviceName,
+                serverUrl = discovered.url,
+                isAutoDiscovered = true
+            )
+            webDavServerDao.insertServer(entity)
+        }
+    }
+
+    fun deleteWebDavServer(serverId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            webDavServerDao.deleteServer(serverId)
+            if (_currentWebDavServer.value?.id == serverId) {
+                _currentWebDavServer.value = null
+                _webDavItems.value = emptyList()
+            }
+        }
+    }
+
+    fun selectWebDavServer(server: com.dwplayer.data.entities.WebDavServerEntity) {
+        _currentWebDavServer.value = server
+        _currentWebDavPath.value = ""
+        browseWebDavFolder(server, "")
+    }
+
+    fun browseWebDavPath(path: String) {
+        val server = _currentWebDavServer.value ?: return
+        _currentWebDavPath.value = path
+        browseWebDavFolder(server, path)
+    }
+
+    fun navigateWebDavUp() {
+        val path = _currentWebDavPath.value
+        if (path.isBlank() || path == "/") {
+            _currentWebDavServer.value = null
+            _webDavItems.value = emptyList()
+        } else {
+            val clean = path.trimEnd('/')
+            val parent = clean.substringBeforeLast("/", "")
+            browseWebDavPath(parent)
+        }
+    }
+
+    private fun browseWebDavFolder(server: com.dwplayer.data.entities.WebDavServerEntity, path: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isWebDavLoading.value = true
+            _webDavError.value = null
+            val result = webDavClientManager.listFiles(server.serverUrl, path, server.username, server.password)
+            if (result.isSuccess) {
+                _webDavItems.value = result.getOrDefault(emptyList())
+            } else {
+                _webDavError.value = result.exceptionOrNull()?.message ?: "Failed to list files"
+                _webDavItems.value = emptyList()
+            }
+            _isWebDavLoading.value = false
+        }
     }
 }

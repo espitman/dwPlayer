@@ -71,6 +71,14 @@ class MainActivity : ComponentActivity() {
             val smbItems by viewModel.smbItems.collectAsState()
             val isSmbLoading by viewModel.isSmbLoading.collectAsState()
 
+            val webDavServers by viewModel.webDavServers.collectAsState()
+            val currentWebDavServer by viewModel.currentWebDavServer.collectAsState()
+            val currentWebDavPath by viewModel.currentWebDavPath.collectAsState()
+            val webDavItems by viewModel.webDavItems.collectAsState()
+            val isWebDavLoading by viewModel.isWebDavLoading.collectAsState()
+            val webDavError by viewModel.webDavError.collectAsState()
+            val discoveredServers by viewModel.discoveredServers.collectAsState()
+
             val sidebarFocusRequester = remember { FocusRequester() }
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
@@ -152,25 +160,45 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     NavDestination.SMB -> {
-                                        SmbBrowserScreen(
-                                            shares = smbShares,
-                                            currentShare = currentSmbShare,
-                                            currentPath = currentSmbPath,
-                                            items = smbItems,
-                                            isLoading = isSmbLoading,
-                                            onSelectShare = { viewModel.selectSmbShare(it) },
-                                            onNavigatePath = { viewModel.browseSmbPath(it) },
-                                            onBackPath = { viewModel.navigateSmbUp() },
+                                        com.dwplayer.ui.screens.NetworkSharesScreen(
+                                            smbShares = smbShares,
+                                            currentSmbShare = currentSmbShare,
+                                            currentSmbPath = currentSmbPath,
+                                            smbItems = smbItems,
+                                            isSmbLoading = isSmbLoading,
+                                            onSelectSmbShare = { viewModel.selectSmbShare(it) },
+                                            onNavigateSmbPath = { viewModel.browseSmbPath(it) },
+                                            onBackSmbPath = { viewModel.navigateSmbUp() },
                                             onPlaySmbFile = { share, path, title ->
                                                 playSmbMedia(share.id, path, title)
                                             },
                                             onDownloadSmbFile = { share, item ->
                                                 viewModel.downloadSmbFile(share, item)
                                             },
-                                            onAddShare = { name, host, shareName, user, pass, domain ->
+                                            onAddSmbShare = { name, host, shareName, user, pass, domain ->
                                                 viewModel.addSmbShare(name, host, shareName, user, pass, domain)
                                             },
-                                            onDeleteShare = { viewModel.deleteSmbShare(it) }
+                                            onDeleteSmbShare = { viewModel.deleteSmbShare(it) },
+
+                                            webDavServers = webDavServers,
+                                            currentWebDavServer = currentWebDavServer,
+                                            currentWebDavPath = currentWebDavPath,
+                                            webDavItems = webDavItems,
+                                            isWebDavLoading = isWebDavLoading,
+                                            webDavError = webDavError,
+                                            onSelectWebDavServer = { viewModel.selectWebDavServer(it) },
+                                            onNavigateWebDavPath = { viewModel.browseWebDavPath(it) },
+                                            onBackWebDavPath = { viewModel.navigateWebDavUp() },
+                                            onPlayWebDavFile = { server, item ->
+                                                playWebDavMedia(server, item)
+                                            },
+                                            onAddWebDavServer = { name, url, user, pass, cb ->
+                                                viewModel.addWebDavServer(name, url, user, pass, cb)
+                                            },
+                                            onDeleteWebDavServer = { viewModel.deleteWebDavServer(it) },
+
+                                            discoveredServers = discoveredServers,
+                                            onAddDiscoveredServer = { viewModel.addDiscoveredServer(it) }
                                         )
                                     }
                                     NavDestination.ADD -> {}
@@ -228,6 +256,23 @@ class MainActivity : ComponentActivity() {
             putExtra("SMB_FILE_PATH", filePath)
             putExtra("MEDIA_TITLE", title)
             putExtra("IS_SMB", true)
+        }
+        startActivity(intent)
+    }
+
+    private fun playWebDavMedia(server: com.dwplayer.data.entities.WebDavServerEntity, item: com.dwplayer.data.models.WebDavItem) {
+        val authHeader = if (!server.username.isNullOrBlank()) {
+            val credentials = "${server.username}:${server.password ?: ""}"
+            val encoded = android.util.Base64.encodeToString(credentials.toByteArray(java.nio.charset.StandardCharsets.UTF_8), android.util.Base64.NO_WRAP)
+            "Basic $encoded"
+        } else null
+
+        val intent = Intent(this, PlayerActivity::class.java).apply {
+            putExtra("MEDIA_URI", item.fullUrl)
+            putExtra("MEDIA_TITLE", item.name)
+            if (authHeader != null) {
+                putExtra("AUTH_HEADER", authHeader)
+            }
         }
         startActivity(intent)
     }

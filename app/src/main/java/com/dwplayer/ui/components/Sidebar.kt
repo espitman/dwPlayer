@@ -35,7 +35,7 @@ enum class NavDestination(val label: String, val icon: ImageVector) {
     DOWNLOADS("Downloads", Icons.Default.Download),
     PLAYLISTS("Playlists", Icons.Default.PlaylistPlay),
     ARCHIVE("Archive", Icons.Default.VideoLibrary),
-    SMB("Network SMB", Icons.Default.FolderShared),
+    SMB("Network Shares", Icons.Default.CloudQueue),
     ADD("Add Link", Icons.Default.AddLink)
 }
 

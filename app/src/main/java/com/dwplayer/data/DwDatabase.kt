@@ -6,11 +6,13 @@ import com.dwplayer.data.daos.DownloadTaskDao
 import com.dwplayer.data.daos.PlaybackHistoryDao
 import com.dwplayer.data.daos.PlaylistDao
 import com.dwplayer.data.daos.SmbShareDao
+import com.dwplayer.data.daos.WebDavServerDao
 import com.dwplayer.data.entities.DownloadTaskEntity
 import com.dwplayer.data.entities.PlaybackHistoryEntity
 import com.dwplayer.data.entities.PlaylistEntity
 import com.dwplayer.data.entities.PlaylistItemEntity
 import com.dwplayer.data.entities.SmbShareEntity
+import com.dwplayer.data.entities.WebDavServerEntity
 
 @Database(
     entities = [
@@ -18,9 +20,10 @@ import com.dwplayer.data.entities.SmbShareEntity
         SmbShareEntity::class,
         PlaybackHistoryEntity::class,
         PlaylistEntity::class,
-        PlaylistItemEntity::class
+        PlaylistItemEntity::class,
+        WebDavServerEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class DwDatabase : RoomDatabase() {
@@ -28,4 +31,5 @@ abstract class DwDatabase : RoomDatabase() {
     abstract fun smbShareDao(): SmbShareDao
     abstract fun playbackHistoryDao(): PlaybackHistoryDao
     abstract fun playlistDao(): PlaylistDao
+    abstract fun webDavServerDao(): WebDavServerDao
 }

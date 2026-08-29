@@ -66,6 +66,9 @@ class KtorService : Service() {
     @Inject lateinit var smbShareDao: SmbShareDao
     @Inject lateinit var playbackHistoryDao: PlaybackHistoryDao
     @Inject lateinit var playlistDao: com.dwplayer.data.daos.PlaylistDao
+    @Inject lateinit var webDavServerDao: com.dwplayer.data.daos.WebDavServerDao
+    @Inject lateinit var webDavClientManager: com.dwplayer.core.webdav.WebDavClientManager
+    @Inject lateinit var networkDiscoveryManager: com.dwplayer.core.discovery.NetworkDiscoveryManager
     @Inject lateinit var smbClientManager: SmbClientManager
     @Inject lateinit var storageManager: StorageManager
 
@@ -77,6 +80,7 @@ class KtorService : Service() {
         super.onCreate()
         startForegroundService()
         startKtorServer()
+        networkDiscoveryManager.startDiscovery()
     }
 
     private fun startForegroundService() {
@@ -442,6 +446,106 @@ class KtorService : Service() {
                                 startActivity(playIntent)
                                 call.respond(ApiResponse("success", "Playing ${targetItem.title} on TV"))
                             }
+
+                            // WEBDAV & DISCOVERY ENDPOINTS
+                            get("/discovery/servers") {
+                                val discovered = networkDiscoveryManager.discoveredServers.value
+                                call.respond(discovered)
+                            }
+
+                            get("/webdav/servers") {
+                                val servers = webDavServerDao.getAllServers()
+                                call.respond(servers)
+                            }
+
+                            post("/webdav/servers") {
+                                try {
+                                    val req = call.receive<AddWebDavServerRequest>()
+                                    if (req.name.isBlank() || req.serverUrl.isBlank()) {
+                                        return@post call.respond(HttpStatusCode.BadRequest, ApiResponse("error", "Name and Server URL are required"))
+                                    }
+
+                                    val testResult = webDavClientManager.testConnection(req.serverUrl, req.username, req.password)
+                                    if (testResult.isFailure) {
+                                        return@post call.respond(HttpStatusCode.BadRequest, ApiResponse("error", testResult.exceptionOrNull()?.message ?: "WebDAV connection failed"))
+                                    }
+
+                                    val serverEntity = com.dwplayer.data.entities.WebDavServerEntity(
+                                        name = req.name.trim(),
+                                        serverUrl = req.serverUrl.trim(),
+                                        username = req.username?.takeIf { it.isNotBlank() },
+                                        password = req.password?.takeIf { it.isNotBlank() }
+                                    )
+                                    webDavServerDao.insertServer(serverEntity)
+                                    call.respond(ApiResponse("success", serverEntity.id))
+                                } catch (e: Exception) {
+                                    call.respond(HttpStatusCode.InternalServerError, ApiResponse("error", e.message))
+                                }
+                            }
+
+                            delete("/webdav/servers/{id}") {
+                                val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
+                                webDavServerDao.deleteServer(id)
+                                call.respond(ApiResponse("success", "WebDAV server removed"))
+                            }
+
+                            get("/webdav/servers/{id}/files") {
+                                val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+                                val server = webDavServerDao.getServerById(id)
+                                    ?: return@get call.respond(HttpStatusCode.NotFound, ApiResponse("error", "Server not found"))
+
+                                val path = call.request.queryParameters["path"] ?: ""
+                                val listResult = webDavClientManager.listFiles(
+                                    serverUrl = server.serverUrl,
+                                    subPath = path,
+                                    username = server.username,
+                                    password = server.password
+                                )
+
+                                if (listResult.isSuccess) {
+                                    val items = listResult.getOrDefault(emptyList())
+                                    call.respond(
+                                        WebDavBrowseResponse(
+                                            serverId = server.id,
+                                            serverName = server.name,
+                                            path = path,
+                                            items = items
+                                        )
+                                    )
+                                } else {
+                                    call.respond(
+                                        HttpStatusCode.InternalServerError,
+                                        ApiResponse("error", listResult.exceptionOrNull()?.message ?: "Failed to list WebDAV files")
+                                    )
+                                }
+                            }
+
+                            post("/webdav/play") {
+                                try {
+                                    val req = call.receive<WebDavPlayRequest>()
+                                    val server = webDavServerDao.getServerById(req.serverId)
+                                    val title = req.title ?: req.fileUrl.substringAfterLast('/')
+
+                                    val authHeader = if (!server?.username.isNullOrBlank()) {
+                                        val credentials = "${server?.username}:${server?.password ?: ""}"
+                                        val encoded = android.util.Base64.encodeToString(credentials.toByteArray(java.nio.charset.StandardCharsets.UTF_8), android.util.Base64.NO_WRAP)
+                                        "Basic $encoded"
+                                    } else null
+
+                                    val playIntent = Intent(this@KtorService, PlayerActivity::class.java).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                        putExtra("MEDIA_URI", req.fileUrl)
+                                        putExtra("MEDIA_TITLE", title)
+                                        if (authHeader != null) {
+                                            putExtra("AUTH_HEADER", authHeader)
+                                        }
+                                    }
+                                    startActivity(playIntent)
+                                    call.respond(ApiResponse("success", "Playing $title on TV"))
+                                } catch (e: Exception) {
+                                    call.respond(HttpStatusCode.InternalServerError, ApiResponse("error", e.message))
+                                }
+                            }
                         }
                     }
                 }
@@ -455,6 +559,7 @@ class KtorService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        networkDiscoveryManager.stopDiscovery()
         server?.stop(1000, 2000)
         serviceJob.cancel()
         super.onDestroy()

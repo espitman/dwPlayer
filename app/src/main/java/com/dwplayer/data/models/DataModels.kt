@@ -152,3 +152,48 @@ data class PlaylistDto(
     val updatedAt: Long,
     val items: List<PlaylistItemDto> = emptyList()
 )
+
+@Serializable
+data class WebDavItem(
+    val name: String,
+    val path: String,
+    val fullUrl: String,
+    val isDirectory: Boolean,
+    val size: Long = 0L,
+    val formattedSize: String = "",
+    val lastModified: String = "",
+    val isVideo: Boolean = false
+)
+
+@Serializable
+data class WebDavBrowseResponse(
+    val serverId: String,
+    val serverName: String,
+    val path: String,
+    val items: List<WebDavItem>
+)
+
+@Serializable
+data class AddWebDavServerRequest(
+    val name: String,
+    val serverUrl: String,
+    val username: String? = null,
+    val password: String? = null
+)
+
+@Serializable
+data class DiscoveredServerDto(
+    val serviceName: String,
+    val serviceType: String,
+    val host: String,
+    val port: Int,
+    val url: String,
+    val deviceType: String
+)
+
+@Serializable
+data class WebDavPlayRequest(
+    val serverId: String,
+    val fileUrl: String,
+    val title: String? = null
+)

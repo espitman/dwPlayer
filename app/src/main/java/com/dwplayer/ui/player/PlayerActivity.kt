@@ -64,6 +64,7 @@ class PlayerActivity : ComponentActivity() {
         val isSmb = intent.getBooleanExtra("IS_SMB", false)
         val smbShareId = intent.getStringExtra("SMB_SHARE_ID")
         val smbFilePath = intent.getStringExtra("SMB_FILE_PATH")
+        val authHeader = intent.getStringExtra("AUTH_HEADER")
 
         playlistId = intent.getStringExtra("PLAYLIST_ID")
         currentItemId = intent.getStringExtra("PLAYLIST_ITEM_ID")
@@ -84,12 +85,13 @@ class PlayerActivity : ComponentActivity() {
         if (mediaUri.isNotBlank()) {
             lifecycleScope.launch {
                 val share = smbShareId?.let { smbShareDao.getShareById(it) }
-                videoPlayer.prepareAndPlay(
+                videoPlayer.playMedia(
                     mediaUri = mediaUri,
                     title = mediaTitle,
                     isSmb = isSmb,
                     smbShare = share,
-                    smbFilePath = smbFilePath
+                    smbFilePath = smbFilePath,
+                    authHeader = authHeader
                 )
             }
         }
@@ -211,7 +213,7 @@ class PlayerActivity : ComponentActivity() {
                     targetUri = File(task.targetFolder, task.fileName).absolutePath
                 }
             }
-            videoPlayer.prepareAndPlay(
+            videoPlayer.playMedia(
                 mediaUri = targetUri,
                 title = item.title,
                 isSmb = false,

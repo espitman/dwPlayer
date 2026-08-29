@@ -40,4 +40,7 @@ object DatabaseModule {
 
     @Provides
     fun providePlaylistDao(database: DwDatabase): com.dwplayer.data.daos.PlaylistDao = database.playlistDao()
+
+    @Provides
+    fun provideWebDavServerDao(database: DwDatabase): com.dwplayer.data.daos.WebDavServerDao = database.webDavServerDao()
 }

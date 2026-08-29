@@ -275,9 +275,9 @@ private fun HeroBanner(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Icon(Icons.Default.FolderShared, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.CloudQueue, null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Browse SMB", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Browse Network", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

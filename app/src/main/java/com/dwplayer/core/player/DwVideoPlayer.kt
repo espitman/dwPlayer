@@ -120,12 +120,13 @@ class DwVideoPlayer @Inject constructor(
         }
     }
 
-    fun prepareAndPlay(
+    fun playMedia(
         mediaUri: String,
         title: String,
         isSmb: Boolean = false,
         smbShare: SmbShareEntity? = null,
-        smbFilePath: String? = null
+        smbFilePath: String? = null,
+        authHeader: String? = null
     ) {
         currentMediaUri = mediaUri
         currentMediaTitle = title
@@ -146,7 +147,13 @@ class DwVideoPlayer @Inject constructor(
             ProgressiveMediaSource.Factory(smbFactory)
                 .createMediaSource(MediaItem.fromUri(Uri.parse(mediaUri)))
         } else {
-            val defaultFactory = DefaultDataSource.Factory(context)
+            val defaultFactory = if (!authHeader.isNullOrBlank()) {
+                val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+                    .setDefaultRequestProperties(mapOf("Authorization" to authHeader))
+                DefaultDataSource.Factory(context, httpFactory)
+            } else {
+                DefaultDataSource.Factory(context)
+            }
             DefaultMediaSourceFactory(defaultFactory)
                 .createMediaSource(MediaItem.fromUri(Uri.parse(mediaUri)))
         }
