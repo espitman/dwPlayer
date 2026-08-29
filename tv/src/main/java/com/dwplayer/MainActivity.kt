@@ -111,7 +111,8 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onNavigateDownloads = { currentDestination = NavDestination.DOWNLOADS },
                                             onNavigateSmb = { currentDestination = NavDestination.SMB },
-                                            onOpenAddDialog = { showAddDialog = true }
+                                            onOpenAddDialog = { showAddDialog = true },
+                                            onClearHistory = { viewModel.clearPlaybackHistory() }
                                         )
                                     }
                                     NavDestination.DOWNLOADS -> {

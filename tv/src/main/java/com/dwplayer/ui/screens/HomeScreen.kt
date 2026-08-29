@@ -41,7 +41,8 @@ fun HomeScreen(
     onPlayMedia: (String, String, Boolean) -> Unit,
     onNavigateDownloads: () -> Unit,
     onNavigateSmb: () -> Unit,
-    onOpenAddDialog: () -> Unit
+    onOpenAddDialog: () -> Unit,
+    onClearHistory: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -59,7 +60,7 @@ fun HomeScreen(
             )
         }
 
-        // 2. Active Downloads Section (if any)
+        // 2. Active Downloads Carousel
         if (activeTasks.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -68,13 +69,32 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "ACTIVE DOWNLOADS (${activeTasks.size})",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "ACTIVE DOWNLOADS",
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.sp
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(AccentPrimary.copy(alpha = 0.2f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${activeTasks.size}",
+                                    color = AccentSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
                         FocusableCard(
                             onClick = onNavigateDownloads,
                             containerColor = Color.Transparent,
@@ -109,13 +129,44 @@ fun HomeScreen(
         if (historyList.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text(
-                        text = "CONTINUE WATCHING",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "CONTINUE WATCHING",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+
+                        FocusableCard(
+                            onClick = onClearHistory,
+                            containerColor = Color.Transparent,
+                            focusedContainerColor = Color(0xFFEF4444).copy(alpha = 0.25f)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = Color(0xFFF87171),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Clear History",
+                                    color = Color(0xFFF87171),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         items(historyList, key = { it.mediaUri }) { item ->

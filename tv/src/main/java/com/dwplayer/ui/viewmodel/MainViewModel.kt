@@ -377,4 +377,10 @@ class MainViewModel @Inject constructor(
             _isWebDavLoading.value = false
         }
     }
+
+    fun clearPlaybackHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            playbackHistoryDao.clearHistory()
+        }
+    }
 }
