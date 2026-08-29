@@ -4,10 +4,12 @@ import android.app.Application
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.dwplayer.phone.core.discovery.NsdServerAdvertiser
+import com.dwplayer.phone.core.media.FolderPreferences
 import com.dwplayer.phone.core.media.MediaItem
 import com.dwplayer.phone.core.media.PhoneMediaScanner
 import com.dwplayer.phone.core.server.PhoneHttpServer
@@ -27,6 +29,8 @@ data class PhoneUiState(
     val isServerRunning: Boolean = false,
     val serverUrl: String = "",
     val qrBitmap: Bitmap? = null,
+    val selectedFolderName: String = "No folder selected",
+    val hasSelectedFolder: Boolean = false,
     val mediaList: List<MediaItem> = emptyList(),
     val isLoadingMedia: Boolean = false
 )
@@ -36,13 +40,28 @@ class PhoneViewModel @Inject constructor(
     application: Application,
     private val httpServer: PhoneHttpServer,
     private val nsdAdvertiser: NsdServerAdvertiser,
-    private val mediaScanner: PhoneMediaScanner
+    private val mediaScanner: PhoneMediaScanner,
+    private val folderPreferences: FolderPreferences
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(PhoneUiState())
     val uiState: StateFlow<PhoneUiState> = _uiState.asStateFlow()
 
     init {
+        refreshState()
+        loadMedia()
+    }
+
+    fun onFolderSelected(uri: Uri, displayName: String) {
+        val app = getApplication<Application>()
+        try {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            app.contentResolver.takePersistableUriPermission(uri, flags and Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        folderPreferences.saveFolder(uri, displayName)
         refreshState()
         loadMedia()
     }
@@ -69,13 +88,17 @@ class PhoneViewModel @Inject constructor(
         val running = httpServer.isRunning
         val ip = nsdAdvertiser.getLocalIpAddress()
         val url = "http://$ip:8085"
+        val folderName = folderPreferences.getFolderName()
+        val hasFolder = folderPreferences.hasSelectedFolder()
 
         viewModelScope.launch {
             val qr = if (running) generateQrCode(url) else null
             _uiState.value = _uiState.value.copy(
                 isServerRunning = running,
                 serverUrl = url,
-                qrBitmap = qr
+                qrBitmap = qr,
+                selectedFolderName = folderName,
+                hasSelectedFolder = hasFolder
             )
         }
     }

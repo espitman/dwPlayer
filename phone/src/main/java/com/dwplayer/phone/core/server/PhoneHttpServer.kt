@@ -1,7 +1,9 @@
 package com.dwplayer.phone.core.server
 
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import android.util.Log
+import com.dwplayer.phone.core.media.FolderPreferences
 import com.dwplayer.phone.core.media.PhoneMediaScanner
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.ktor.http.ContentType
@@ -17,12 +19,11 @@ import io.ktor.server.netty.NettyApplicationEngine
 import io.ktor.server.plugins.autohead.AutoHeadResponse
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
-import io.ktor.server.plugins.partialcontent.PartialContent
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
-import io.ktor.server.request.path
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondFile
+import io.ktor.server.response.respondOutputStream
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
@@ -31,15 +32,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import java.io.File
-import java.net.URLDecoder
+import java.io.FileInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class PhoneHttpServer @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val mediaScanner: PhoneMediaScanner
+    private val mediaScanner: PhoneMediaScanner,
+    private val folderPreferences: FolderPreferences
 ) {
     private val TAG = "PhoneHttpServer"
     private var engine: NettyApplicationEngine? = null
@@ -67,7 +68,6 @@ class PhoneHttpServer @Inject constructor(
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Options)
                 }
-                install(PartialContent)
                 install(AutoHeadResponse)
                 install(StatusPages) {
                     exception<Throwable> { call, cause ->
@@ -82,6 +82,7 @@ class PhoneHttpServer @Inject constructor(
                         handle {
                             if (call.request.httpMethod.value.equals("PROPFIND", ignoreCase = true)) {
                                 val videos = mediaScanner.getVideos()
+                                val folderName = folderPreferences.getFolderName()
                                 val sb = StringBuilder()
                                 sb.append("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n")
                                 sb.append("<D:multistatus xmlns:D=\"DAV:\">\n")
@@ -91,7 +92,7 @@ class PhoneHttpServer @Inject constructor(
                                 sb.append("    <D:href>/</D:href>\n")
                                 sb.append("    <D:propstat>\n")
                                 sb.append("      <D:prop>\n")
-                                sb.append("        <D:displayname>dwShare Videos</D:displayname>\n")
+                                sb.append("        <D:displayname>${escapeXml(folderName)}</D:displayname>\n")
                                 sb.append("        <D:resourcetype><D:collection/></D:resourcetype>\n")
                                 sb.append("      </D:prop>\n")
                                 sb.append("      <D:status>HTTP/1.1 200 OK</D:status>\n")
@@ -140,7 +141,7 @@ class PhoneHttpServer @Inject constructor(
                         call.respond(result)
                     }
 
-                    // Direct Stream with HTTP 206 Partial Content
+                    // Stream media with full HTTP Range (206 Partial Content) support
                     get("/api/stream/{id}") {
                         val idStr = call.parameters["id"]
                         val id = idStr?.toLongOrNull()
@@ -150,22 +151,89 @@ class PhoneHttpServer @Inject constructor(
                         }
 
                         val video = mediaScanner.getVideos().find { it.id == id }
-                        if (video != null && video.path.isNotEmpty()) {
-                            val file = File(video.path)
-                            if (file.exists() && file.canRead()) {
-                                call.respondFile(file)
-                                return@get
+                        if (video == null) {
+                            call.respond(HttpStatusCode.NotFound, "Media not found in shared folder")
+                            return@get
+                        }
+
+                        val pfd: ParcelFileDescriptor? = try {
+                            this@PhoneHttpServer.context.contentResolver.openFileDescriptor(video.uri, "r")
+                        } catch (e: Exception) {
+                            null
+                        }
+
+                        if (pfd == null) {
+                            call.respond(HttpStatusCode.NotFound, "Cannot open video file stream")
+                            return@get
+                        }
+
+                        val totalLength = pfd.statSize
+                        val rangeHeader = call.request.headers[HttpHeaders.Range]
+
+                        var start = 0L
+                        var end = totalLength - 1
+
+                        if (!rangeHeader.isNullOrBlank() && rangeHeader.startsWith("bytes=")) {
+                            val ranges = rangeHeader.removePrefix("bytes=").split("-")
+                            val rStart = ranges.getOrNull(0)?.toLongOrNull()
+                            val rEnd = ranges.getOrNull(1)?.toLongOrNull()
+
+                            if (rStart != null) {
+                                start = rStart
+                            }
+                            if (rEnd != null && rEnd < totalLength) {
+                                end = rEnd
                             }
                         }
 
-                        // Fallback open via ContentResolver stream
-                        call.respond(HttpStatusCode.NotFound, "File not found or inaccessible")
+                        val contentLength = (end - start) + 1
+                        val contentType = ContentType.parse(video.mimeType)
+
+                        call.response.header(HttpHeaders.AcceptRanges, "bytes")
+                        call.response.header(HttpHeaders.ContentLength, contentLength.toString())
+
+                        if (rangeHeader != null) {
+                            call.response.header(HttpHeaders.ContentRange, "bytes $start-$end/$totalLength")
+                            call.respondOutputStream(
+                                contentType = contentType,
+                                status = HttpStatusCode.PartialContent
+                            ) {
+                                val fis = FileInputStream(pfd.fileDescriptor)
+                                fis.channel.position(start)
+                                val buffer = ByteArray(64 * 1024)
+                                var remaining = contentLength
+                                while (remaining > 0) {
+                                    val toRead = minOf(buffer.size.toLong(), remaining).toInt()
+                                    val read = fis.read(buffer, 0, toRead)
+                                    if (read <= 0) break
+                                    write(buffer, 0, read)
+                                    remaining -= read
+                                }
+                                fis.close()
+                                pfd.close()
+                            }
+                        } else {
+                            call.respondOutputStream(
+                                contentType = contentType,
+                                status = HttpStatusCode.OK
+                            ) {
+                                val fis = FileInputStream(pfd.fileDescriptor)
+                                val buffer = ByteArray(64 * 1024)
+                                var read: Int
+                                while (fis.read(buffer).also { read = it } > 0) {
+                                    write(buffer, 0, read)
+                                }
+                                fis.close()
+                                pfd.close()
+                            }
+                        }
                     }
 
                     // Web Browser Companion Dashboard
                     get("/") {
                         val videos = mediaScanner.getVideos()
-                        val html = buildWebDashboardHtml(videos)
+                        val folderName = folderPreferences.getFolderName()
+                        val html = buildWebDashboardHtml(videos, folderName)
                         call.respondText(html, ContentType.Text.Html)
                     }
                 }
@@ -206,7 +274,7 @@ class PhoneHttpServer @Inject constructor(
             .replace("'", "&apos;")
     }
 
-    private fun buildWebDashboardHtml(videos: List<com.dwplayer.phone.core.media.MediaItem>): String {
+    private fun buildWebDashboardHtml(videos: List<com.dwplayer.phone.core.media.MediaItem>, folderName: String): String {
         return """
             <!DOCTYPE html>
             <html lang="en">
@@ -221,7 +289,7 @@ class PhoneHttpServer @Inject constructor(
                 <header class="flex items-center justify-between border-b border-slate-800 pb-4">
                   <div>
                     <h1 class="text-2xl font-black text-blue-400">dwShare Media Server</h1>
-                    <p class="text-xs text-slate-400">Streaming videos directly from Android Phone to Android TV & Web</p>
+                    <p class="text-xs text-slate-400">Shared Folder: <strong class="text-white">$folderName</strong></p>
                   </div>
                   <span class="px-3 py-1 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded-full text-xs font-bold">
                     ● Server Active
@@ -229,10 +297,10 @@ class PhoneHttpServer @Inject constructor(
                 </header>
 
                 <div class="space-y-3">
-                  <h2 class="text-sm font-bold text-slate-300">Available Videos (${videos.size})</h2>
+                  <h2 class="text-sm font-bold text-slate-300">Shared Videos (${videos.size})</h2>
                   ${if (videos.isEmpty()) """
                     <div class="p-8 text-center bg-slate-900 rounded-2xl border border-slate-800 text-slate-500 text-sm">
-                      No video files found on this phone yet.
+                      No video files found in the shared folder ($folderName).
                     </div>
                   """ else videos.map { v -> """
                     <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between gap-4">

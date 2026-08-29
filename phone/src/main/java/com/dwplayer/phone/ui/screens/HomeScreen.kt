@@ -1,8 +1,10 @@
 package com.dwplayer.phone.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,17 +21,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -41,10 +45,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.documentfile.provider.DocumentFile
 import com.dwplayer.phone.core.media.MediaItem
 import com.dwplayer.phone.ui.theme.AccentCyan
 import com.dwplayer.phone.ui.theme.AccentEmerald
@@ -59,6 +65,17 @@ import com.dwplayer.phone.ui.viewmodel.PhoneViewModel
 @Composable
 fun HomeScreen(viewModel: PhoneViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    val folderPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val docFile = DocumentFile.fromTreeUri(context, uri)
+            val displayName = docFile?.name ?: uri.lastPathSegment ?: "Selected Folder"
+            viewModel.onFolderSelected(uri, displayName)
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -100,7 +117,7 @@ fun HomeScreen(viewModel: PhoneViewModel) {
                             color = TextPrimary
                         )
                         Text(
-                            text = "Wireless TV Media Server",
+                            text = "Folder-Specific TV Streaming Server",
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
@@ -118,6 +135,79 @@ fun HomeScreen(viewModel: PhoneViewModel) {
                         contentDescription = "Refresh",
                         tint = AccentCyan
                     )
+                }
+            }
+        }
+
+        // Shared Folder Card (Choose Folder)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = null,
+                                tint = AccentCyan,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Shared Movie Folder",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+
+                        Button(
+                            onClick = { folderPickerLauncher.launch(null) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (uiState.hasSelectedFolder) CardDark else AccentPrimary
+                            )
+                        ) {
+                            Text(
+                                text = if (uiState.hasSelectedFolder) "Change Folder" else "Select Folder",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(CardDark)
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = if (uiState.hasSelectedFolder) AccentEmerald else Color.Gray,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = uiState.selectedFolderName,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (uiState.hasSelectedFolder) TextPrimary else TextSecondary
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -154,9 +244,9 @@ fun HomeScreen(viewModel: PhoneViewModel) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = if (uiState.isServerRunning)
-                                    "Broadcasting to TV automatically via Wi-Fi mDNS"
+                                    "Broadcasting videos from shared folder to TV"
                                 else
-                                    "Turn on to stream phone videos directly to dwPlayer on TV",
+                                    "Turn on to stream movies to dwPlayer on TV",
                                 fontSize = 12.sp,
                                 color = TextSecondary
                             )
@@ -230,7 +320,7 @@ fun HomeScreen(viewModel: PhoneViewModel) {
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Scan from PC or Browser to Stream",
+                                    text = "Scan to Browse / Stream on PC",
                                     fontSize = 11.sp,
                                     color = TextSecondary
                                 )
@@ -269,7 +359,7 @@ fun HomeScreen(viewModel: PhoneViewModel) {
                             color = TextPrimary
                         )
                         Text(
-                            text = "Open dwPlayer on your TV > Network Shares > Discovered Devices to stream with 1 click.",
+                            text = "Only videos inside the selected folder will be shared to TV.",
                             fontSize = 11.sp,
                             color = TextSecondary
                         )
@@ -296,7 +386,7 @@ fun HomeScreen(viewModel: PhoneViewModel) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Phone Media Library (${uiState.mediaList.size})",
+                        text = "Videos in Shared Folder (${uiState.mediaList.size})",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -306,16 +396,40 @@ fun HomeScreen(viewModel: PhoneViewModel) {
         }
 
         // Media Items
-        if (uiState.mediaList.isEmpty()) {
+        if (!uiState.hasSelectedFolder) {
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(32.dp),
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "No folder selected yet.",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Click 'Select Folder' above to choose a movie folder to share.",
+                            fontSize = 11.sp,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
+        } else if (uiState.mediaList.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No videos detected on phone storage.",
+                        text = "No video files found inside ${uiState.selectedFolderName}.",
                         fontSize = 13.sp,
                         color = TextSecondary
                     )
@@ -376,13 +490,6 @@ fun MediaItemRow(video: MediaItem) {
                         fontSize = 11.sp,
                         color = TextSecondary
                     )
-                    if (video.durationMs > 0) {
-                        Text(
-                            text = " • ${formatDuration(video.durationMs)}",
-                            fontSize = 11.sp,
-                            color = TextSecondary
-                        )
-                    }
                 }
             }
         }
@@ -393,13 +500,4 @@ private fun formatSize(bytes: Long): String {
     val mb = bytes / (1024.0 * 1024.0)
     val gb = mb / 1024.0
     return if (gb >= 1.0) String.format("%.2f GB", gb) else String.format("%.1f MB", mb)
-}
-
-private fun formatDuration(ms: Long): String {
-    val totalSec = ms / 1000
-    val min = totalSec / 60
-    val sec = totalSec % 60
-    val hr = min / 60
-    val remMin = min % 60
-    return if (hr > 0) String.format("%d:%02d:%02d", hr, remMin, sec) else String.format("%02d:%02d", min, sec)
 }
