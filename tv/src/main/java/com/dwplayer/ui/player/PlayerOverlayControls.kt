@@ -2,6 +2,7 @@
 package com.dwplayer.ui.player
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -359,6 +360,15 @@ private fun TvSeekBar(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
+    val trackHeight by animateDpAsState(
+        targetValue = if (isFocused) 8.dp else 4.dp,
+        label = "trackHeight"
+    )
+    val thumbSize by animateDpAsState(
+        targetValue = if (isFocused) 18.dp else 0.dp,
+        label = "thumbSize"
+    )
+
     Surface(
         onClick = onTogglePlay,
         modifier = modifier
@@ -390,28 +400,29 @@ private fun TvSeekBar(
                     false
                 }
             },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isFocused) CardDark.copy(alpha = 0.6f) else Color.Transparent,
-            focusedContainerColor = CardDark.copy(alpha = 0.8f)
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent
         ),
         border = ClickableSurfaceDefaults.border(
             border = androidx.tv.material3.Border(BorderStroke(0.dp, Color.Transparent)),
-            focusedBorder = androidx.tv.material3.Border(BorderStroke(2.dp, AccentSecondary))
+            focusedBorder = androidx.tv.material3.Border(BorderStroke(0.dp, Color.Transparent))
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f)
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = if (isFocused) 10.dp else 6.dp),
+                .height(28.dp)
+                .padding(vertical = 4.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             // Track background
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (isFocused) 10.dp else 6.dp)
+                    .height(trackHeight)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.2f))
             ) {
@@ -429,8 +440,37 @@ private fun TvSeekBar(
                         .fillMaxWidth(progress)
                         .fillMaxHeight()
                         .clip(CircleShape)
-                        .background(if (isFocused) AccentSecondary else AccentPrimary)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(AccentPrimary, Color(0xFF38BDF8))
+                            )
+                        )
                 )
+            }
+
+            // Scrubber Thumb
+            if (isFocused && thumbSize > 0.dp) {
+                val thumbOffset = ((maxWidth - thumbSize) * progress).coerceAtLeast(0.dp)
+                Box(
+                    modifier = Modifier
+                        .offset(x = thumbOffset)
+                        .size(thumbSize),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Outer glow
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(AccentPrimary.copy(alpha = 0.35f), CircleShape)
+                    )
+                    // Inner white core
+                    Box(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .background(Color.White, CircleShape)
+                            .border(2.dp, AccentPrimary, CircleShape)
+                    )
+                }
             }
         }
     }
