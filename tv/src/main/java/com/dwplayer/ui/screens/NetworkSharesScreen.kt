@@ -16,10 +16,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +80,10 @@ fun NetworkSharesScreen(
     var selectedTab by remember { mutableStateOf(NetworkTab.WEBDAV) }
     var showAddSmbDialog by remember { mutableStateOf(false) }
     var showAddWebDavDialog by remember { mutableStateOf(false) }
+    var actionWebDavServer by remember { mutableStateOf<WebDavServerEntity?>(null) }
+    var actionSmbShare by remember { mutableStateOf<SmbShareEntity?>(null) }
+    var confirmDeleteWebDav by remember { mutableStateOf<WebDavServerEntity?>(null) }
+    var confirmDeleteSmb by remember { mutableStateOf<SmbShareEntity?>(null) }
 
     // If actively browsing an SMB share
     if (currentSmbShare != null) {
@@ -233,6 +241,7 @@ fun NetworkSharesScreen(
                         items(webDavServers, key = { it.id }) { server ->
                             FocusableCard(
                                 onClick = { onSelectWebDavServer(server) },
+                                onLongClick = { actionWebDavServer = server },
                                 modifier = Modifier.fillMaxWidth(),
                                 containerColor = CardDark
                             ) {
@@ -301,17 +310,9 @@ fun NetworkSharesScreen(
 
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        FocusableCard(
-                                            onClick = { onDeleteWebDavServer(server.id) },
-                                            containerColor = Color.Red.copy(alpha = 0.15f),
-                                            focusedContainerColor = Color.Red.copy(alpha = 0.35f)
-                                        ) {
-                                            Box(modifier = Modifier.padding(8.dp)) {
-                                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFFF6B6B), modifier = Modifier.size(16.dp))
-                                            }
-                                        }
+                                        Text("Hold for Options", color = TextTertiary, fontSize = 11.sp)
                                         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
                                     }
                                 }
@@ -338,6 +339,7 @@ fun NetworkSharesScreen(
                         items(smbShares, key = { it.id }) { share ->
                             FocusableCard(
                                 onClick = { onSelectSmbShare(share) },
+                                onLongClick = { actionSmbShare = share },
                                 modifier = Modifier.fillMaxWidth(),
                                 containerColor = CardDark
                             ) {
@@ -389,17 +391,9 @@ fun NetworkSharesScreen(
 
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        FocusableCard(
-                                            onClick = { onDeleteSmbShare(share.id) },
-                                            containerColor = Color.Red.copy(alpha = 0.15f),
-                                            focusedContainerColor = Color.Red.copy(alpha = 0.35f)
-                                        ) {
-                                            Box(modifier = Modifier.padding(8.dp)) {
-                                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFFF6B6B), modifier = Modifier.size(16.dp))
-                                            }
-                                        }
+                                        Text("Hold for Options", color = TextTertiary, fontSize = 11.sp)
                                         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
                                     }
                                 }
@@ -501,6 +495,74 @@ fun NetworkSharesScreen(
         }
     }
 
+    // Long-Press Action Dialog for WebDAV Server
+    if (actionWebDavServer != null) {
+        val target = actionWebDavServer!!
+        NetworkServerActionDialog(
+            title = target.name,
+            subtitle = target.serverUrl,
+            icon = if (target.isAutoDiscovered) Icons.Default.PhoneAndroid else Icons.Default.CloudQueue,
+            onOpen = {
+                actionWebDavServer = null
+                onSelectWebDavServer(target)
+            },
+            onDelete = {
+                actionWebDavServer = null
+                confirmDeleteWebDav = target
+            },
+            onDismiss = { actionWebDavServer = null }
+        )
+    }
+
+    // Long-Press Action Dialog for SMB Share
+    if (actionSmbShare != null) {
+        val target = actionSmbShare!!
+        NetworkServerActionDialog(
+            title = target.name,
+            subtitle = "smb://${target.host}/${target.shareName}",
+            icon = Icons.Default.FolderShared,
+            onOpen = {
+                actionSmbShare = null
+                onSelectSmbShare(target)
+            },
+            onDelete = {
+                actionSmbShare = null
+                confirmDeleteSmb = target
+            },
+            onDismiss = { actionSmbShare = null }
+        )
+    }
+
+    // Delete Confirmation for WebDAV Server
+    if (confirmDeleteWebDav != null) {
+        val target = confirmDeleteWebDav!!
+        NetworkDeleteConfirmDialog(
+            title = "Delete WebDAV Server",
+            itemName = target.name,
+            itemDetails = target.serverUrl,
+            onConfirmDelete = {
+                confirmDeleteWebDav = null
+                onDeleteWebDavServer(target.id)
+            },
+            onDismiss = { confirmDeleteWebDav = null }
+        )
+    }
+
+    // Delete Confirmation for SMB Share
+    if (confirmDeleteSmb != null) {
+        val target = confirmDeleteSmb!!
+        NetworkDeleteConfirmDialog(
+            title = "Delete SMB Share",
+            itemName = target.name,
+            itemDetails = "smb://${target.host}/${target.shareName}",
+            onConfirmDelete = {
+                confirmDeleteSmb = null
+                onDeleteSmbShare(target.id)
+            },
+            onDismiss = { confirmDeleteSmb = null }
+        )
+    }
+
     if (showAddWebDavDialog) {
         AddWebDavDialog(
             onDismiss = { showAddWebDavDialog = false },
@@ -521,6 +583,283 @@ fun NetworkSharesScreen(
                 showAddSmbDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun NetworkServerActionDialog(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val headerFocusRequester = remember { FocusRequester() }
+    val openedAt = remember { System.currentTimeMillis() }
+    val safeOpen = remember(onOpen) {
+        {
+            if (System.currentTimeMillis() - openedAt > 500L) {
+                onOpen()
+            }
+        }
+    }
+    val safeDelete = remember(onDelete) {
+        {
+            if (System.currentTimeMillis() - openedAt > 500L) {
+                onDelete()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        try {
+            headerFocusRequester.requestFocus()
+        } catch (e: Exception) {}
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(480.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(CardDark)
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Focusable Safe Info Header (Lands initial focus safely)
+                FocusableCard(
+                    onClick = {},
+                    containerColor = SurfaceDark.copy(alpha = 0.6f),
+                    focusedContainerColor = SurfaceDark,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(headerFocusRequester)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(AccentPrimary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = AccentPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = title,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = subtitle,
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                // Actions
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Open / Browse
+                    FocusableCard(
+                        onClick = safeOpen,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        containerColor = AccentPrimary.copy(alpha = 0.85f),
+                        focusedContainerColor = AccentSecondary
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(Icons.Default.FolderOpen, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Text("Open / Browse Share", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Delete Server / Share
+                    FocusableCard(
+                        onClick = safeDelete,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        containerColor = Color.Red.copy(alpha = 0.15f),
+                        focusedContainerColor = Color.Red.copy(alpha = 0.45f)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(20.dp))
+                            Text("Delete Connection", color = Color(0xFFFF6B6B), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Cancel
+                    FocusableCard(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        containerColor = Color.White.copy(alpha = 0.08f)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NetworkDeleteConfirmDialog(
+    title: String,
+    itemName: String,
+    itemDetails: String,
+    onConfirmDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val openedAt = remember { System.currentTimeMillis() }
+    val safeConfirm = remember(onConfirmDelete) {
+        {
+            if (System.currentTimeMillis() - openedAt > 500L) {
+                onConfirmDelete()
+            }
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(480.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(CardDark)
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                    .padding(28.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color.Red.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.DeleteForever, null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(24.dp))
+                    }
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(itemName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(itemDetails, color = TextTertiary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+
+                Text(
+                    text = "Are you sure you want to remove this connection from your TV? You can always add it back later.",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    FocusableCard(
+                        onClick = safeConfirm,
+                        containerColor = AccentRose,
+                        focusedContainerColor = Color(0xFFE11D48),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Delete Connection",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                            )
+                        }
+                    }
+
+                    FocusableCard(
+                        onClick = onDismiss,
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Cancel",
+                                color = TextSecondary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -868,6 +1207,15 @@ fun NetworkMediaActionDialog(
     onDownload: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val headerFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        try {
+            headerFocusRequester.requestFocus()
+        } catch (e: Exception) {}
+    }
+
     val openedAt = remember { System.currentTimeMillis() }
     val safePlay = remember(onPlay) {
         {
@@ -900,42 +1248,54 @@ fun NetworkMediaActionDialog(
                     .clip(RoundedCornerShape(20.dp))
                     .background(CardDark)
                     .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                    .padding(28.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                // Focusable Safe Info Header (Lands initial focus safely)
+                FocusableCard(
+                    onClick = {},
+                    containerColor = SurfaceDark.copy(alpha = 0.6f),
+                    focusedContainerColor = SurfaceDark,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(headerFocusRequester)
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(AccentPrimary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Movie,
-                            contentDescription = null,
-                            tint = AccentPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = title,
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "Size: $sizeText",
-                            color = TextSecondary,
-                            fontSize = 12.sp
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(AccentPrimary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Movie,
+                                contentDescription = null,
+                                tint = AccentPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = title,
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Size: $sizeText",
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
 

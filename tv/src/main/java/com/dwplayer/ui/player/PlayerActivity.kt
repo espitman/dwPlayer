@@ -4,6 +4,7 @@ package com.dwplayer.ui.player
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -52,6 +53,9 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Prevent screensaver / sleep during playback
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Immersive Fullscreen
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -322,6 +326,11 @@ class PlayerActivity : ComponentActivity() {
                 super.onKeyDown(keyCode, event)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     override fun onDestroy() {

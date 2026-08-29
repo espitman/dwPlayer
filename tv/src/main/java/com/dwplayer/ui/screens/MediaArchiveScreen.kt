@@ -32,6 +32,9 @@ import com.dwplayer.data.models.LocalArchiveFile
 import com.dwplayer.data.models.StorageInfo
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -333,10 +336,19 @@ private fun ArchiveFileActionDialog(
     onPlay: () -> Unit,
     onDeletePrompt: () -> Unit
 ) {
+    val headerFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        try {
+            headerFocusRequester.requestFocus()
+        } catch (e: Exception) {}
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
-                .width(420.dp)
+                .width(440.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .background(SurfaceDark)
                 .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(22.dp))
@@ -346,23 +358,41 @@ private fun ArchiveFileActionDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    text = file.name,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 2,
-                    textAlign = TextAlign.Center,
-                    overflow = TextOverflow.Ellipsis
-                )
+                // Focusable Safe Info Header (Lands initial focus safely)
+                FocusableCard(
+                    onClick = {},
+                    containerColor = CardDark.copy(alpha = 0.6f),
+                    focusedContainerColor = CardDark,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(headerFocusRequester)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = file.name,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 2,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Size: ${file.sizeFormatted} • Format: ${file.extension}",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
 
-                Text(
-                    text = "Size: ${file.sizeFormatted} • Format: ${file.extension}",
-                    color = TextSecondary,
-                    fontSize = 12.sp
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 DialogActionButton(
                     icon = Icons.Default.PlayArrow,
