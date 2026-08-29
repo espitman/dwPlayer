@@ -7,6 +7,7 @@ import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
@@ -65,8 +66,18 @@ class DwVideoPlayer @Inject constructor(
             .build()
     }
 
+    private val renderersFactory: DefaultRenderersFactory by lazy {
+        DefaultRenderersFactory(context).apply {
+            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            setEnableDecoderFallback(true)
+            setAllowedVideoJoiningTimeMs(5000)
+            setEnableAudioFloatOutput(true)
+            setEnableAudioTrackPlaybackParams(true)
+        }
+    }
+
     val exoPlayer: ExoPlayer by lazy {
-        ExoPlayer.Builder(context)
+        ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
             .setLoadControl(loadControl)
             .setAudioAttributes(
@@ -76,6 +87,8 @@ class DwVideoPlayer @Inject constructor(
                     .build(),
                 /* handleAudioFocus = */ true
             )
+            .setSeekBackIncrementMs(10_000)
+            .setSeekForwardIncrementMs(10_000)
             .build().apply {
                 addListener(playerListener)
             }
@@ -154,21 +167,7 @@ class DwVideoPlayer @Inject constructor(
         val extractorsFactory = androidx.media3.extractor.DefaultExtractorsFactory()
             .setConstantBitrateSeekingEnabled(true)
 
-        val mediaItemBuilder = MediaItem.Builder().setUri(Uri.parse(mediaUri))
-        val ext = (title.takeIf { it.contains(".") } ?: mediaUri).substringAfterLast('.', "").substringBefore('?').substringBefore('/').lowercase()
-        val mime = when (ext) {
-            "mkv" -> "video/x-matroska"
-            "mp4", "m4v" -> "video/mp4"
-            "avi" -> "video/x-msvideo"
-            "webm" -> "video/webm"
-            "ts" -> "video/mp2t"
-            "mov" -> "video/quicktime"
-            else -> null
-        }
-        if (mime != null) {
-            mediaItemBuilder.setMimeType(mime)
-        }
-        val builtMediaItem = mediaItemBuilder.build()
+        val builtMediaItem = MediaItem.fromUri(mediaUri)
 
         val mediaSource: MediaSource = if (isSmb && smbShare != null && smbFilePath != null) {
             val smbFactory = SmbDataSourceFactory(smbClientManager, smbShare, smbFilePath)
