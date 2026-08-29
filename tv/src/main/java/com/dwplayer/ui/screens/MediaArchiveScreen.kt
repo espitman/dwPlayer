@@ -403,8 +403,13 @@ private fun DialogActionButton(
     color: Color,
     onClick: () -> Unit
 ) {
+    val openedAt = remember { System.currentTimeMillis() }
     FocusableCard(
-        onClick = onClick,
+        onClick = {
+            if (System.currentTimeMillis() - openedAt > 500L) {
+                onClick()
+            }
+        },
         modifier = Modifier.fillMaxWidth().height(48.dp),
         containerColor = Color.White.copy(alpha = 0.05f),
         focusedContainerColor = color

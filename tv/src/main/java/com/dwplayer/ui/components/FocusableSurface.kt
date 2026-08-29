@@ -35,6 +35,26 @@ fun FocusableCard(
     content: @Composable () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    var lastLongClickTime by remember { mutableLongStateOf(0L) }
+
+    val safeOnClick = remember(onClick, onLongClick) {
+        {
+            val now = System.currentTimeMillis()
+            if (onLongClick == null || (now - lastLongClickTime > 700L)) {
+                onClick()
+            }
+        }
+    }
+
+    val safeOnLongClick = remember(onLongClick) {
+        if (onLongClick != null) {
+            {
+                lastLongClickTime = System.currentTimeMillis()
+                onLongClick()
+            }
+        } else null
+    }
+
     val animatedContentScale by animateFloatAsState(
         targetValue = if (isFocused) contentScale else 1.0f,
         animationSpec = tween(
@@ -45,8 +65,8 @@ fun FocusableCard(
     )
 
     Surface(
-        onClick = onClick,
-        onLongClick = onLongClick,
+        onClick = safeOnClick,
+        onLongClick = safeOnLongClick,
         modifier = modifier.onFocusChanged { isFocused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(shape),
         border = ClickableSurfaceDefaults.border(

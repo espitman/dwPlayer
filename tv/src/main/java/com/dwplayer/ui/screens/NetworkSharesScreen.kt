@@ -868,6 +868,22 @@ fun NetworkMediaActionDialog(
     onDownload: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val openedAt = remember { System.currentTimeMillis() }
+    val safePlay = remember(onPlay) {
+        {
+            if (System.currentTimeMillis() - openedAt > 500L) {
+                onPlay()
+            }
+        }
+    }
+    val safeDownload = remember(onDownload) {
+        {
+            if (System.currentTimeMillis() - openedAt > 500L) {
+                onDownload()
+            }
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -927,7 +943,7 @@ fun NetworkMediaActionDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // Play / Stream Online
                     FocusableCard(
-                        onClick = onPlay,
+                        onClick = safePlay,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
@@ -948,7 +964,7 @@ fun NetworkMediaActionDialog(
 
                     // Download / Transfer to TV Storage
                     FocusableCard(
-                        onClick = onDownload,
+                        onClick = safeDownload,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
