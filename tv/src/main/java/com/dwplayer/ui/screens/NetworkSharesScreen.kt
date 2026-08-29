@@ -65,6 +65,7 @@ fun NetworkSharesScreen(
     onNavigateWebDavPath: (String) -> Unit,
     onBackWebDavPath: () -> Unit,
     onPlayWebDavFile: (WebDavServerEntity, WebDavItem) -> Unit,
+    onDownloadWebDavFile: (WebDavServerEntity, WebDavItem) -> Unit,
     onAddWebDavServer: (String, String, String?, String?, (Boolean, String) -> Unit) -> Unit,
     onDeleteWebDavServer: (String) -> Unit,
 
@@ -101,7 +102,8 @@ fun NetworkSharesScreen(
             errorMessage = webDavError,
             onNavigate = onNavigateWebDavPath,
             onBack = onBackWebDavPath,
-            onPlay = { item -> onPlayWebDavFile(currentWebDavServer, item) }
+            onPlay = { item -> onPlayWebDavFile(currentWebDavServer, item) },
+            onDownload = { item -> onDownloadWebDavFile(currentWebDavServer, item) }
         )
         return
     }
@@ -531,8 +533,28 @@ private fun WebDavBrowserView(
     errorMessage: String?,
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
-    onPlay: (WebDavItem) -> Unit
+    onPlay: (WebDavItem) -> Unit,
+    onDownload: (WebDavItem) -> Unit
 ) {
+    var actionItem by remember { mutableStateOf<WebDavItem?>(null) }
+
+    if (actionItem != null) {
+        val target = actionItem!!
+        NetworkMediaActionDialog(
+            title = target.name,
+            sizeText = target.formattedSize,
+            onPlay = {
+                actionItem = null
+                onPlay(target)
+            },
+            onDownload = {
+                actionItem = null
+                onDownload(target)
+            },
+            onDismiss = { actionItem = null }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -604,6 +626,11 @@ private fun WebDavBrowserView(
                                 onPlay(item)
                             }
                         },
+                        onLongClick = {
+                            if (item.isVideo) {
+                                actionItem = item
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(64.dp),
@@ -664,7 +691,9 @@ private fun WebDavBrowserView(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Text("Stream 4K", color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Hold to Download", color = TextSecondary, fontSize = 10.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Stream", color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
                                 }
                             } else if (item.isDirectory) {
@@ -689,6 +718,25 @@ private fun SmbBrowserView(
     onPlay: (String, String) -> Unit,
     onDownload: (SmbItem) -> Unit
 ) {
+    var actionItem by remember { mutableStateOf<SmbItem?>(null) }
+
+    if (actionItem != null) {
+        val target = actionItem!!
+        NetworkMediaActionDialog(
+            title = target.name,
+            sizeText = "${target.size / (1024 * 1024)} MB",
+            onPlay = {
+                actionItem = null
+                onPlay(target.path, target.name)
+            },
+            onDownload = {
+                actionItem = null
+                onDownload(target)
+            },
+            onDismiss = { actionItem = null }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -703,7 +751,7 @@ private fun SmbBrowserView(
         ) {
             Column {
                 Text(text = share.name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                Text(text = if (path.isBlank()) "smb://${share.host}/${share.shareName}" else "smb://${share.host}/${share.shareName}/$path", color = AccentSecondary, fontSize = 12.sp)
+                Text(text = if (path.isBlank() || path == "/") "Root Directory" else path, color = AccentSecondary, fontSize = 12.sp)
             }
 
             FocusableCard(onClick = onBack, containerColor = Color.White.copy(alpha = 0.1f)) {
@@ -713,7 +761,7 @@ private fun SmbBrowserView(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Text(if (path.isBlank()) "Exit Share" else "Up One Level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(if (path.isBlank() || path == "/") "Exit Share" else "Up One Level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -739,6 +787,11 @@ private fun SmbBrowserView(
                                 onNavigate(item.path)
                             } else if (isVideo) {
                                 onPlay(item.path, item.name)
+                            }
+                        },
+                        onLongClick = {
+                            if (isVideo) {
+                                actionItem = item
                             }
                         },
                         modifier = Modifier
@@ -793,10 +846,144 @@ private fun SmbBrowserView(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    Text("Hold to Download", color = TextSecondary, fontSize = 10.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text("Play SMB", color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NetworkMediaActionDialog(
+    title: String,
+    sizeText: String,
+    onPlay: () -> Unit,
+    onDownload: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(480.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(CardDark)
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                    .padding(28.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(AccentPrimary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Movie,
+                            contentDescription = null,
+                            tint = AccentPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Size: $sizeText",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                // Action Buttons
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Play / Stream Online
+                    FocusableCard(
+                        onClick = onPlay,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        containerColor = AccentPrimary.copy(alpha = 0.85f),
+                        focusedContainerColor = AccentPrimary
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Text("Stream Now", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Download / Transfer to TV Storage
+                    FocusableCard(
+                        onClick = onDownload,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        containerColor = Color(0xFF10B981).copy(alpha = 0.15f),
+                        focusedContainerColor = Color(0xFF10B981),
+                        focusedContentColor = Color.White
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(22.dp))
+                            Column {
+                                Text("Download to TV Storage", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("Save locally for offline playback", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                    }
+
+                    // Cancel
+                    FocusableCard(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        containerColor = Color.White.copy(alpha = 0.06f)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

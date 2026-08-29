@@ -21,6 +21,7 @@ import com.dwplayer.ui.theme.*
 @Composable
 fun FocusableCard(
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     containerColor: Color = CardDark.copy(alpha = 0.6f),
     focusedContainerColor: Color = CardDark.copy(alpha = 0.95f),
@@ -45,6 +46,7 @@ fun FocusableCard(
 
     Surface(
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier.onFocusChanged { isFocused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(shape),
         border = ClickableSurfaceDefaults.border(

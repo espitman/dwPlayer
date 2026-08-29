@@ -193,6 +193,10 @@ class MainActivity : ComponentActivity() {
                                             onPlayWebDavFile = { server, item ->
                                                 playWebDavMedia(server, item)
                                             },
+                                            onDownloadWebDavFile = { server, item ->
+                                                viewModel.enqueueDownload(item.fullUrl, item.name)
+                                                android.widget.Toast.makeText(this@MainActivity, "Added to Downloads: ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
+                                            },
                                             onAddWebDavServer = { name, url, user, pass, cb ->
                                                 viewModel.addWebDavServer(name, url, user, pass, cb)
                                             },
