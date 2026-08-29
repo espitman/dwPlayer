@@ -46,11 +46,11 @@ fun AddDownloadDialog(
     ) {
         Box(
             modifier = Modifier
-                .width(960.dp)
+                .fillMaxWidth(0.80f)
                 .clip(RoundedCornerShape(24.dp))
                 .background(SurfaceDark)
                 .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
-                .padding(32.dp)
+                .padding(28.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Header
@@ -84,41 +84,41 @@ fun AddDownloadDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(32.dp)
+                    horizontalArrangement = Arrangement.spacedBy(28.dp)
                 ) {
                     // Left: QR Code companion
                     Column(
                         modifier = Modifier
-                            .weight(1.1f)
+                            .weight(1f)
                             .background(CardDark.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                             .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
-                            .padding(24.dp),
+                            .padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = "Easy Phone Remote",
                             color = AccentSecondary,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        QrCodeView(data = companionUrl, size = 180.dp)
+                        QrCodeView(data = companionUrl, size = 150.dp)
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = companionUrl,
                             color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "Open in mobile browser on same Wi-Fi",
+                            text = "Open on same Wi-Fi",
                             color = TextTertiary,
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center
@@ -127,8 +127,8 @@ fun AddDownloadDialog(
 
                     // Right: Manual Input
                     Column(
-                        modifier = Modifier.weight(1.8f),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.weight(1.6f),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
                             text = "Or enter URL manually:",
