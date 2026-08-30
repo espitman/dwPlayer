@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
             var showAddDialog by remember { mutableStateOf(false) }
+            var addDialogInitialPlaylistId by remember { mutableStateOf<String?>(null) }
 
             val tasks by viewModel.tasks.collectAsState()
             val playlists by viewModel.playlists.collectAsState()
@@ -123,6 +124,7 @@ class MainActivity : ComponentActivity() {
                                         DownloadsScreen(
                                             tasks = tasks,
                                             liveProgress = liveProgress,
+                                            playlists = playlists,
                                             onPlayTask = { task ->
                                                 val file = File(task.targetFolder, task.fileName)
                                                 playMedia(file.absolutePath, task.fileName, isSmb = false)
@@ -132,18 +134,34 @@ class MainActivity : ComponentActivity() {
                                             onDeleteTask = { id, delFile -> viewModel.deleteDownload(id, delFile) },
                                             onPauseAll = { viewModel.pauseAll() },
                                             onResumeAll = { viewModel.resumeAll() },
-                                            onOpenAddDialog = { showAddDialog = true }
+                                            onOpenAddDialog = { showAddDialog = true },
+                                            onAddToPlaylist = { playlistId, title, uri ->
+                                                viewModel.addPlaylistItem(playlistId, title, uri)
+                                                android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
+                                            },
+                                            onCreatePlaylist = { name ->
+                                                viewModel.createPlaylist(name)
+                                            }
                                         )
                                     }
                                     NavDestination.PLAYLISTS -> {
                                         com.dwplayer.ui.screens.PlaylistsScreen(
                                             playlists = playlists,
+                                            archiveFiles = archiveFiles,
+                                            onCreatePlaylist = { viewModel.createPlaylist(it) },
+                                            onDeletePlaylist = { viewModel.deletePlaylist(it) },
+                                            onDeletePlaylistItem = { viewModel.deletePlaylistItem(it) },
+                                            onAddPlaylistItem = { playlistId, title, uri ->
+                                                viewModel.addPlaylistItem(playlistId, title, uri)
+                                                android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
+                                            },
                                             onPlayPlaylistItem = { playlistId, item ->
                                                 playPlaylistItem(playlistId, item)
                                             },
-                                            onDeletePlaylist = { viewModel.deletePlaylist(it) },
-                                            onDeletePlaylistItem = { viewModel.deletePlaylistItem(it) },
-                                            onOpenAddDialog = { showAddDialog = true }
+                                            onOpenAddDialog = { targetPlaylistId ->
+                                                addDialogInitialPlaylistId = targetPlaylistId
+                                                showAddDialog = true
+                                            }
                                         )
                                     }
                                     NavDestination.ARCHIVE -> {
@@ -153,6 +171,7 @@ class MainActivity : ComponentActivity() {
                                         MediaArchiveScreen(
                                             files = archiveFiles,
                                             storageInfo = storageInfo,
+                                            playlists = playlists,
                                             onPlayFile = { file ->
                                                 playMedia(file.path, file.name, isSmb = false)
                                             },
@@ -161,6 +180,13 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onRefresh = {
                                                 viewModel.refreshArchiveFiles()
+                                            },
+                                            onAddToPlaylist = { playlistId, title, uri ->
+                                                viewModel.addPlaylistItem(playlistId, title, uri)
+                                                android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
+                                            },
+                                            onCreatePlaylist = { name ->
+                                                viewModel.createPlaylist(name)
                                             }
                                         )
                                     }
@@ -220,7 +246,12 @@ class MainActivity : ComponentActivity() {
                             AddDownloadDialog(
                                 companionUrl = companionUrl,
                                 playlists = playlists,
-                                onDismiss = { showAddDialog = false },
+                                initialPlaylistId = addDialogInitialPlaylistId,
+                                onCreatePlaylist = { viewModel.createPlaylist(it) },
+                                onDismiss = {
+                                    showAddDialog = false
+                                    addDialogInitialPlaylistId = null
+                                },
                                 onAddUrl = { url, name, playlistId ->
                                     viewModel.enqueueDownload(url, name, playlistId)
                                 }

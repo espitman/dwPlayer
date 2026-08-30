@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,7 +22,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.Icon
-import androidx.tv.material3.*
+import androidx.tv.material3.Text
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.PlaylistAdd
+import com.dwplayer.ui.components.CreatePlaylistDialog
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.components.QrCodeView
 import com.dwplayer.ui.theme.*
@@ -33,12 +35,24 @@ import com.dwplayer.ui.theme.*
 fun AddDownloadDialog(
     companionUrl: String,
     playlists: List<com.dwplayer.data.entities.PlaylistWithItems> = emptyList(),
+    initialPlaylistId: String? = null,
+    onCreatePlaylist: ((String) -> Unit)? = null,
     onDismiss: () -> Unit,
     onAddUrl: (url: String, name: String?, playlistId: String?) -> Unit
 ) {
     var inputUrl by remember { mutableStateOf("") }
     var inputName by remember { mutableStateOf("") }
-    var selectedPlaylistId by remember { mutableStateOf<String?>(null) }
+    var selectedPlaylistId by remember { mutableStateOf<String?>(initialPlaylistId) }
+    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+
+    if (showCreatePlaylistDialog && onCreatePlaylist != null) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreatePlaylistDialog = false },
+            onCreate = { name ->
+                onCreatePlaylist(name)
+            }
+        )
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -191,34 +205,89 @@ fun AddDownloadDialog(
                             }
                         }
 
-                        // Playlist Selection (if any playlists exist)
-                        if (playlists.isNotEmpty()) {
-                            Column {
-                                Text("Assign to Playlist (Optional)", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
+                        // Playlist Selection
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Assign to Playlist / Series (Optional)",
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (onCreatePlaylist != null) {
+                                    FocusableCard(
+                                        onClick = { showCreatePlaylistDialog = true },
+                                        containerColor = Color.Transparent
+                                    ) {
+                                        Text(
+                                            "+ New Series",
+                                            color = AccentCyan,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                item {
                                     FocusableCard(
                                         onClick = { selectedPlaylistId = null },
-                                        containerColor = if (selectedPlaylistId == null) AccentPrimary else Color.White.copy(alpha = 0.05f),
-                                        modifier = Modifier.weight(1f).height(36.dp)
+                                        containerColor = if (selectedPlaylistId == null) AccentPrimary else Color.White.copy(alpha = 0.06f),
+                                        focusedContainerColor = AccentPrimary.copy(alpha = 0.8f),
+                                        modifier = Modifier.height(36.dp)
                                     ) {
-                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Text("None", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                                .fillMaxHeight(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                "None",
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
                                         }
                                     }
-                                    playlists.take(2).forEach { p ->
-                                        val isSel = selectedPlaylistId == p.playlist.id
-                                        FocusableCard(
-                                            onClick = { selectedPlaylistId = p.playlist.id },
-                                            containerColor = if (isSel) AccentPrimary else Color.White.copy(alpha = 0.05f),
-                                            modifier = Modifier.weight(1f).height(36.dp)
+                                }
+
+                                items(playlists, key = { it.playlist.id }) { p ->
+                                    val isSel = selectedPlaylistId == p.playlist.id
+                                    FocusableCard(
+                                        onClick = { selectedPlaylistId = p.playlist.id },
+                                        containerColor = if (isSel) AccentPrimary else Color.White.copy(alpha = 0.06f),
+                                        focusedContainerColor = AccentPrimary.copy(alpha = 0.8f),
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                                .fillMaxHeight(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Box(modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
-                                                Text(p.playlist.name, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                                            }
+                                            Icon(
+                                                Icons.Default.PlaylistPlay,
+                                                null,
+                                                tint = if (isSel) Color.White else AccentCyan,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Text(
+                                                p.playlist.name,
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1
+                                            )
                                         }
                                     }
                                 }

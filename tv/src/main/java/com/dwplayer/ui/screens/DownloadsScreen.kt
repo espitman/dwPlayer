@@ -24,24 +24,31 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Icon
 import androidx.tv.material3.Text
 import com.dwplayer.data.entities.DownloadTaskEntity
+import com.dwplayer.data.entities.PlaylistWithItems
 import com.dwplayer.data.models.DownloadProgressInfo
+import com.dwplayer.ui.components.AddToPlaylistDialog
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
+import java.io.File
 
 @Composable
 fun DownloadsScreen(
     tasks: List<DownloadTaskEntity>,
     liveProgress: Map<String, DownloadProgressInfo>,
+    playlists: List<PlaylistWithItems> = emptyList(),
     onPlayTask: (DownloadTaskEntity) -> Unit,
     onPauseTask: (String) -> Unit,
     onResumeTask: (String) -> Unit,
     onDeleteTask: (String, Boolean) -> Unit,
     onPauseAll: () -> Unit,
     onResumeAll: () -> Unit,
-    onOpenAddDialog: () -> Unit
+    onOpenAddDialog: () -> Unit,
+    onAddToPlaylist: ((playlistId: String, title: String, uri: String) -> Unit)? = null,
+    onCreatePlaylist: ((String) -> Unit)? = null
 ) {
     var selectedTab by remember { mutableStateOf("ALL") } // ALL, ACTIVE, COMPLETED, PAUSED
     var selectedTaskForAction by remember { mutableStateOf<DownloadTaskEntity?>(null) }
+    var showAddToPlaylistTask by remember { mutableStateOf<DownloadTaskEntity?>(null) }
 
     val filteredTasks = remember(tasks, selectedTab) {
         when (selectedTab) {
@@ -172,6 +179,11 @@ fun DownloadsScreen(
                 selectedTaskForAction = null
                 onPlayTask(task)
             },
+            onAddToPlaylistPrompt = {
+                val target = task
+                selectedTaskForAction = null
+                showAddToPlaylistTask = target
+            },
             onPause = {
                 selectedTaskForAction = null
                 onPauseTask(task.id)
@@ -183,6 +195,23 @@ fun DownloadsScreen(
             onDelete = { deleteFile ->
                 selectedTaskForAction = null
                 onDeleteTask(task.id, deleteFile)
+            }
+        )
+    }
+
+    // Add To Playlist Dialog
+    showAddToPlaylistTask?.let { task ->
+        val file = File(task.targetFolder, task.fileName)
+        AddToPlaylistDialog(
+            videoTitle = task.fileName,
+            videoUri = file.absolutePath,
+            playlists = playlists,
+            onDismiss = { showAddToPlaylistTask = null },
+            onAddToPlaylist = { playlistId, title, uri ->
+                onAddToPlaylist?.invoke(playlistId, title, uri)
+            },
+            onCreateNewPlaylist = { name ->
+                onCreatePlaylist?.invoke(name)
             }
         )
     }
@@ -324,6 +353,7 @@ private fun TaskActionDialog(
     task: DownloadTaskEntity,
     onDismiss: () -> Unit,
     onPlay: () -> Unit,
+    onAddToPlaylistPrompt: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onDelete: (Boolean) -> Unit
@@ -352,6 +382,7 @@ private fun TaskActionDialog(
 
                 if (task.status == "COMPLETED") {
                     DialogActionButton(Icons.Default.PlayArrow, "Play Movie Now", AccentEmerald, onPlay)
+                    DialogActionButton(Icons.Default.PlaylistAdd, "Add to Playlist / Series", AccentCyan, onAddToPlaylistPrompt)
                 } else if (task.status == "ACTIVE" || task.status == "PENDING") {
                     DialogActionButton(Icons.Default.Pause, "Pause Download", AccentAmber, onPause)
                 } else {

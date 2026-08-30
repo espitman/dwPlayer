@@ -28,8 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
+import com.dwplayer.data.entities.PlaylistWithItems
 import com.dwplayer.data.models.LocalArchiveFile
 import com.dwplayer.data.models.StorageInfo
+import com.dwplayer.ui.components.AddToPlaylistDialog
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
 import androidx.compose.ui.focus.FocusRequester
@@ -42,12 +44,16 @@ import java.util.*
 fun MediaArchiveScreen(
     files: List<LocalArchiveFile>,
     storageInfo: StorageInfo,
+    playlists: List<PlaylistWithItems> = emptyList(),
     onPlayFile: (LocalArchiveFile) -> Unit,
     onDeleteFile: (LocalArchiveFile) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onAddToPlaylist: ((playlistId: String, title: String, uri: String) -> Unit)? = null,
+    onCreatePlaylist: ((String) -> Unit)? = null
 ) {
     var selectedActionFile by remember { mutableStateOf<LocalArchiveFile?>(null) }
     var fileToDelete by remember { mutableStateOf<LocalArchiveFile?>(null) }
+    var showAddToPlaylistFile by remember { mutableStateOf<LocalArchiveFile?>(null) }
 
     val totalBytes = remember(files) {
         files.sumOf { it.sizeBytes }
@@ -145,7 +151,7 @@ fun MediaArchiveScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.VideoLibrary,
+                        imageVector = Icons.Default.Movie,
                         contentDescription = null,
                         tint = TextTertiary,
                         modifier = Modifier.size(56.dp)
@@ -182,7 +188,7 @@ fun MediaArchiveScreen(
         }
     }
 
-    // 3. File Actions Dialog (Play Movie / Delete / Cancel)
+    // 3. File Actions Dialog (Play Movie / Add to Playlist / Delete / Cancel)
     selectedActionFile?.let { file ->
         ArchiveFileActionDialog(
             file = file,
@@ -191,6 +197,11 @@ fun MediaArchiveScreen(
                 selectedActionFile = null
                 onPlayFile(file)
             },
+            onAddToPlaylistPrompt = {
+                val target = file
+                selectedActionFile = null
+                showAddToPlaylistFile = target
+            },
             onDeletePrompt = {
                 selectedActionFile = null
                 fileToDelete = file
@@ -198,7 +209,23 @@ fun MediaArchiveScreen(
         )
     }
 
-    // 4. Delete Confirmation Dialog
+    // 4. Add to Playlist Dialog
+    showAddToPlaylistFile?.let { file ->
+        AddToPlaylistDialog(
+            videoTitle = file.name,
+            videoUri = file.path,
+            playlists = playlists,
+            onDismiss = { showAddToPlaylistFile = null },
+            onAddToPlaylist = { playlistId, title, uri ->
+                onAddToPlaylist?.invoke(playlistId, title, uri)
+            },
+            onCreateNewPlaylist = { name ->
+                onCreatePlaylist?.invoke(name)
+            }
+        )
+    }
+
+    // 5. Delete Confirmation Dialog
     fileToDelete?.let { target ->
         DeleteArchiveConfirmDialog(
             file = target,
@@ -245,9 +272,9 @@ private fun ArchiveFileCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        Brush.linearGradient(listOf(AccentPrimary.copy(alpha = 0.8f), Color(0xFF4F46E5)))
-                    ),
+                        .background(
+                            Brush.linearGradient(listOf(AccentPrimary.copy(alpha = 0.8f), Color(0xFF4F46E5)))
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -275,11 +302,12 @@ private fun ArchiveFileCard(
                         // Ext Badge
                         Box(
                             modifier = Modifier
-                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(AccentPrimary.copy(alpha = 0.15f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = file.extension,
+                                text = file.extension.uppercase(Locale.getDefault()),
                                 color = AccentCyan,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black
@@ -293,27 +321,36 @@ private fun ArchiveFileCard(
                             fontWeight = FontWeight.SemiBold
                         )
 
-                        Text("•", color = TextTertiary, fontSize = 11.sp)
+                        Text(
+                            text = "•",
+                            color = TextTertiary,
+                            fontSize = 12.sp
+                        )
 
                         Text(
                             text = dateStr,
                             color = TextTertiary,
-                            fontSize = 11.sp
+                            fontSize = 12.sp
                         )
                     }
                 }
             }
 
-            // Right: Action Hint Chips
+            // Right: Play Pill & Hold hint
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Hold for Options", color = TextTertiary, fontSize = 10.sp)
-                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                    text = "Hold for options",
+                    color = TextTertiary,
+                    fontSize = 11.sp
+                )
+
                 Box(
                     modifier = Modifier
-                        .background(AccentPrimary.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AccentPrimary.copy(alpha = 0.12f))
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(
@@ -334,6 +371,7 @@ private fun ArchiveFileActionDialog(
     file: LocalArchiveFile,
     onDismiss: () -> Unit,
     onPlay: () -> Unit,
+    onAddToPlaylistPrompt: () -> Unit,
     onDeletePrompt: () -> Unit
 ) {
     val headerFocusRequester = remember { FocusRequester() }
@@ -356,7 +394,7 @@ private fun ArchiveFileActionDialog(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Focusable Safe Info Header (Lands initial focus safely)
                 FocusableCard(
@@ -399,6 +437,13 @@ private fun ArchiveFileActionDialog(
                     label = "Play Movie Now",
                     color = AccentEmerald,
                     onClick = onPlay
+                )
+
+                DialogActionButton(
+                    icon = Icons.Default.PlaylistAdd,
+                    label = "Add to Playlist / Series",
+                    color = AccentCyan,
+                    onClick = onAddToPlaylistPrompt
                 )
 
                 DialogActionButton(
