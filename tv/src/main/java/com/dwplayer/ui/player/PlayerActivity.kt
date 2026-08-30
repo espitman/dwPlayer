@@ -218,7 +218,6 @@ class PlayerActivity : ComponentActivity() {
                         onUpdateSubtitleSettings = {
                             videoPlayer.subtitlePreferencesManager.updateSettings(it)
                         },
-                        onSelectResizeMode = { videoPlayer.setResizeMode(it) },
                         onSelectPlaybackSpeed = { videoPlayer.setPlaybackSpeed(it) },
                         onClosePlayer = { finish() },
                         onDismissControls = {
@@ -274,7 +273,6 @@ class PlayerActivity : ComponentActivity() {
                     true
                 }
             }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                 if (!isControlsVisible) {
                     resetControlsTimeout()

@@ -16,14 +16,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,17 +57,17 @@ fun PlayerOverlayControls(
     onSelectAudioTrack: (TrackInfo) -> Unit,
     onSelectSubtitleTrack: (TrackInfo?) -> Unit,
     onUpdateSubtitleSettings: (SubtitleSettings) -> Unit = {},
-    onSelectResizeMode: (VideoResizeMode) -> Unit,
     onSelectPlaybackSpeed: (Float) -> Unit,
     onClosePlayer: () -> Unit,
     onDismissControls: () -> Unit = {}
 ) {
     var showSubtitleDialog by remember { mutableStateOf(false) }
     var showAudioDialog by remember { mutableStateOf(false) }
-    var showAspectDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
 
     val playPauseFocusRequester = remember { FocusRequester() }
+    val speedFocusRequester = remember { FocusRequester() }
+    val timelineFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(isVisible) {
         if (isVisible) {
@@ -87,19 +88,19 @@ fun PlayerOverlayControls(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color.Black.copy(alpha = 0.8f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.85f)
+                            BgDark.copy(alpha = 0.34f),
+                            BgDark.copy(alpha = 0.18f),
+                            BgDark.copy(alpha = 0.78f)
                         )
                     )
                 )
-                .padding(32.dp)
         ) {
             // TOP BAR: Title + Back + Quick Actions
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.TopCenter),
+                    .align(Alignment.TopCenter)
+                    .padding(start = 48.dp, top = 38.dp, end = 48.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -112,12 +113,15 @@ fun PlayerOverlayControls(
                 ) {
                     FocusableCard(
                         onClick = onClosePlayer,
-                        containerColor = Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = AccentRose,
-                        modifier = Modifier.size(40.dp)
+                        containerColor = BgDark.copy(alpha = 0.48f),
+                        focusedContainerColor = BgDark.copy(alpha = 0.72f),
+                        borderColor = Color.White.copy(alpha = 0.20f),
+                        focusedBorderColor = AccentPrimary,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.size(52.dp)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(24.dp))
                         }
                     }
 
@@ -125,101 +129,127 @@ fun PlayerOverlayControls(
                         Text(
                             text = uiState.title,
                             color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            lineHeight = 29.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${uiState.resizeMode.displayName} • Speed ${uiState.playbackSpeed}x",
+                            text = playerFileName(uiState),
                             color = TextSecondary,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // Quick Settings (Subtitles, Audio, Aspect, Speed)
+                // Quick settings match the web player's compact text tools.
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PlayerTopButton(Icons.Default.Subtitles, "Subs") { showSubtitleDialog = true }
-                    PlayerTopButton(Icons.Default.Audiotrack, "Audio") { showAudioDialog = true }
-                    PlayerTopButton(Icons.Default.AspectRatio, "Aspect") { showAspectDialog = true }
-                    PlayerTopButton(Icons.Default.Speed, "${uiState.playbackSpeed}x") { showSpeedDialog = true }
+                    PlayerTopButton("Subtitles") { showSubtitleDialog = true }
+                    PlayerTopButton("Audio") { showAudioDialog = true }
+                    PlayerTopButton(
+                        label = formatPlaybackSpeed(uiState.playbackSpeed),
+                        modifier = Modifier
+                            .focusRequester(speedFocusRequester)
+                            .focusProperties { down = playPauseFocusRequester }
+                    ) { showSpeedDialog = true }
                 }
             }
 
             // CENTER: Large Play / Pause & Seek & Episode Skip buttons
             Row(
                 modifier = Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (hasPreviousEpisode) {
                     FocusableCard(
                         onClick = onPlayPreviousEpisode,
-                        containerColor = Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = AccentPrimary,
-                        modifier = Modifier.size(52.dp)
+                        containerColor = BgDark.copy(alpha = 0.48f),
+                        focusedContainerColor = BgDark.copy(alpha = 0.72f),
+                        borderColor = Color.White.copy(alpha = 0.20f),
+                        focusedBorderColor = AccentPrimary,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.size(66.dp)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.SkipPrevious, "Previous Episode", tint = Color.White, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.SkipPrevious, "Previous Episode", tint = Color.White, modifier = Modifier.size(30.dp))
                         }
                     }
                 }
 
                 FocusableCard(
                     onClick = onSeekBackward,
-                    containerColor = Color.White.copy(alpha = 0.1f),
-                    focusedContainerColor = AccentPrimary,
-                    modifier = Modifier.size(52.dp)
+                    containerColor = BgDark.copy(alpha = 0.48f),
+                    focusedContainerColor = BgDark.copy(alpha = 0.72f),
+                    borderColor = Color.White.copy(alpha = 0.20f),
+                    focusedBorderColor = AccentPrimary,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(66.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Replay10, "Rewind 10s", tint = Color.White, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.Replay10, "Rewind 10s", tint = Color.White, modifier = Modifier.size(30.dp))
                     }
                 }
 
                 FocusableCard(
                     onClick = onTogglePlayPause,
-                    containerColor = AccentPrimary,
-                    focusedContainerColor = AccentSecondary,
+                    containerColor = TextPrimary,
+                    focusedContainerColor = Color.White,
+                    contentColor = BgDark,
+                    focusedContentColor = BgDark,
+                    borderColor = Color.Transparent,
+                    focusedBorderColor = AccentPrimary,
+                    shape = RoundedCornerShape(50),
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(88.dp)
                         .focusRequester(playPauseFocusRequester)
+                        .focusProperties {
+                            up = speedFocusRequester
+                            down = timelineFocusRequester
+                        }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Play/Pause",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
+                            tint = BgDark,
+                            modifier = Modifier.size(40.dp)
                         )
                     }
                 }
 
                 FocusableCard(
                     onClick = onSeekForward,
-                    containerColor = Color.White.copy(alpha = 0.1f),
-                    focusedContainerColor = AccentPrimary,
-                    modifier = Modifier.size(52.dp)
+                    containerColor = BgDark.copy(alpha = 0.48f),
+                    focusedContainerColor = BgDark.copy(alpha = 0.72f),
+                    borderColor = Color.White.copy(alpha = 0.20f),
+                    focusedBorderColor = AccentPrimary,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(66.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Forward10, "Forward 10s", tint = Color.White, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.Forward10, "Forward 10s", tint = Color.White, modifier = Modifier.size(30.dp))
                     }
                 }
 
                 if (hasNextEpisode) {
                     FocusableCard(
                         onClick = onPlayNextEpisode,
-                        containerColor = Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = AccentPrimary,
-                        modifier = Modifier.size(52.dp)
+                        containerColor = BgDark.copy(alpha = 0.48f),
+                        focusedContainerColor = BgDark.copy(alpha = 0.72f),
+                        borderColor = Color.White.copy(alpha = 0.20f),
+                        focusedBorderColor = AccentPrimary,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.size(66.dp)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.SkipNext, "Next Episode", tint = Color.White, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.SkipNext, "Next Episode", tint = Color.White, modifier = Modifier.size(30.dp))
                         }
                     }
                 }
@@ -230,8 +260,8 @@ fun PlayerOverlayControls(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(start = 48.dp, end = 48.dp, bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 val progress = if (uiState.durationMs > 0) (uiState.currentPositionMs.toFloat() / uiState.durationMs.toFloat()).coerceIn(0f, 1f) else 0f
                 val bufferedProgress = if (uiState.durationMs > 0) (uiState.bufferedPositionMs.toFloat() / uiState.durationMs.toFloat()).coerceIn(0f, 1f) else 0f
@@ -241,26 +271,31 @@ fun PlayerOverlayControls(
                     onSeekLeft = onSeekBackward,
                     onSeekRight = onSeekForward,
                     onTogglePlay = onTogglePlayPause,
-                    onDismiss = onDismissControls
+                    onDismiss = onDismissControls,
+                    modifier = Modifier
+                        .focusRequester(timelineFocusRequester)
+                        .focusProperties { up = playPauseFocusRequester }
                 )
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         formatDuration(uiState.currentPositionMs),
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.72f),
+                        fontSize = 11.sp,
+                        lineHeight = 28.sp,
+                        fontFamily = FontFamily.Monospace,
                         style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                     )
                     Text(
                         formatDuration(uiState.durationMs),
-                        color = TextSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.72f),
+                        fontSize = 11.sp,
+                        lineHeight = 28.sp,
+                        fontFamily = FontFamily.Monospace,
                         style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                     )
                 }
@@ -315,20 +350,6 @@ fun PlayerOverlayControls(
         )
     }
 
-    if (showAspectDialog) {
-        OptionDialog(
-            title = "Aspect Ratio",
-            options = VideoResizeMode.values().toList(),
-            selectedOption = uiState.resizeMode,
-            getLabel = { it.displayName },
-            onSelect = {
-                onSelectResizeMode(it)
-                showAspectDialog = false
-            },
-            onDismiss = { showAspectDialog = false }
-        )
-    }
-
     if (showSpeedDialog) {
         OptionDialog(
             title = "Playback Speed",
@@ -357,11 +378,11 @@ private fun TvSeekBar(
     var isFocused by remember { mutableStateOf(false) }
 
     val trackHeight by animateDpAsState(
-        targetValue = if (isFocused) 8.dp else 4.dp,
+        targetValue = if (isFocused) 7.dp else 5.dp,
         label = "trackHeight"
     )
     val thumbSize by animateDpAsState(
-        targetValue = if (isFocused) 18.dp else 0.dp,
+        targetValue = if (isFocused) 16.dp else 0.dp,
         label = "thumbSize"
     )
 
@@ -410,8 +431,8 @@ private fun TvSeekBar(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(28.dp)
-                .padding(vertical = 4.dp),
+                .height(17.dp)
+                .padding(vertical = 5.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             // Track background
@@ -419,7 +440,6 @@ private fun TvSeekBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(trackHeight)
-                    .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.2f))
             ) {
                 // Buffered progress
@@ -427,20 +447,14 @@ private fun TvSeekBar(
                     modifier = Modifier
                         .fillMaxWidth(bufferedProgress)
                         .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.35f))
+                        .background(Color.White.copy(alpha = 0.30f))
                 )
                 // Active progress
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progress)
                         .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(AccentPrimary, Color(0xFF38BDF8))
-                            )
-                        )
+                        .background(Color.White)
                 )
             }
 
@@ -473,24 +487,33 @@ private fun TvSeekBar(
 }
 
 @Composable
-private fun PlayerTopButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun PlayerTopButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     FocusableCard(
         onClick = onClick,
-        containerColor = Color.White.copy(alpha = 0.12f),
-        focusedContainerColor = AccentPrimary
+        modifier = modifier.height(48.dp),
+        containerColor = BgDark.copy(alpha = 0.48f),
+        focusedContainerColor = BgDark.copy(alpha = 0.72f),
+        contentColor = Color.White,
+        focusedContentColor = Color.White,
+        borderColor = Color.White.copy(alpha = 0.20f),
+        focusedBorderColor = AccentPrimary,
+        shape = RoundedCornerShape(13.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = label,
                 color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 softWrap = false,
                 style = TextStyle(
@@ -499,6 +522,20 @@ private fun PlayerTopButton(icon: ImageVector, label: String, onClick: () -> Uni
             )
         }
     }
+}
+
+private fun playerFileName(uiState: PlayerUiState): String {
+    val raw = uiState.mediaUri
+        .substringBefore('?')
+        .substringAfterLast('/')
+        .takeIf { it.isNotBlank() }
+        ?: uiState.title
+    return runCatching { android.net.Uri.decode(raw) }.getOrDefault(raw)
+}
+
+private fun formatPlaybackSpeed(speed: Float): String {
+    val value = if (speed % 1f == 0f) speed.toInt().toString() else speed.toString()
+    return "$value×"
 }
 
 @Composable
