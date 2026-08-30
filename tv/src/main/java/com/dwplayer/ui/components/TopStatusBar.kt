@@ -4,7 +4,6 @@ package com.dwplayer.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,42 +40,36 @@ fun TopStatusBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 36.dp, vertical = 20.dp),
+            .padding(start = 32.dp, end = 48.dp, top = 28.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: Wordmark
+        // Left: Wordmark (dwPlayer TV)
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 text = "dwPlayer",
                 color = Color.White,
-                fontSize = 20.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = (-0.5).sp
+                letterSpacing = (-0.8).sp
             )
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "TV",
-                    color = AccentPrimary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
+            Text(
+                text = "TV",
+                color = Color(0xFF7A857E),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.sp
+            )
         }
 
-        // Right: Remote Status & Clock
+        // Right: Remote Status & Clock (● Web remote connected 20:07)
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(20.dp)
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -84,19 +77,15 @@ fun TopStatusBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(6.dp)
                         .clip(CircleShape)
-                        .background(if (isConnected) AccentEmerald else TextTertiary)
+                        .background(if (isConnected) Color.White else Color(0xFF5A635E))
                 )
                 Text(
-                    text = if (isConnected) {
-                        val host = companionUrl.removePrefix("http://").removePrefix("https://").substringBefore("/")
-                        "Web remote: $host"
-                    } else "Web remote offline",
-                    color = if (isConnected) TextSecondary else TextTertiary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = FontFamily.Monospace
+                    text = if (isConnected) "Web remote connected" else "Web remote offline",
+                    color = Color(0xFFA8B2AB),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
@@ -104,7 +93,7 @@ fun TopStatusBar(
                 text = currentTime,
                 color = Color.White,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 fontFamily = FontFamily.Monospace
             )
         }

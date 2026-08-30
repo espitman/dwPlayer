@@ -11,10 +11,12 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.WindowCompat
@@ -22,7 +24,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.dwplayer.core.downloader.DownloadService
 import com.dwplayer.core.webserver.KtorService
-import com.dwplayer.ui.components.AnimatedBackground
 import com.dwplayer.ui.components.NavDestination
 import com.dwplayer.ui.components.TopStatusBar
 import com.dwplayer.ui.components.TvSidebar
@@ -85,11 +86,12 @@ class MainActivity : ComponentActivity() {
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 DwPlayerTheme {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        // 1. Ambient Animated Background
-                        AnimatedBackground()
-
-                        // 2. Main Navigation Layout (Left Icon Rail + Content)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF090C0A))
+                    ) {
+                        // Main Navigation Layout (Left Icon Rail + Content)
                         Row(modifier = Modifier.fillMaxSize()) {
                             TvSidebar(
                                 currentDestination = currentDestination,
@@ -262,7 +264,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // 3. Add Download Link & Companion QR Modal
+                        // Add Download Link Modal
                         if (showAddDialog) {
                             AddDownloadDialog(
                                 companionUrl = companionUrl,

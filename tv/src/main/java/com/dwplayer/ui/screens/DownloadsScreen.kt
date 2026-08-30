@@ -66,157 +66,128 @@ fun DownloadsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .padding(start = 32.dp, end = 48.dp, top = 8.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // 1. Top Header
+        // 1. Header (Matching screenshot-2026-08-30T16-38-03-301Z.png)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Bottom
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Text(
                     text = "OFFLINE QUEUE",
-                    color = TextSecondary,
-                    fontSize = 11.sp,
+                    color = Color(0xFF8A968F),
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.5.sp
+                    letterSpacing = 2.sp
                 )
                 Text(
                     text = "Downloads",
                     color = Color.White,
-                    fontSize = 36.sp,
+                    fontSize = 48.sp,
                     fontWeight = FontWeight.Black,
-                    letterSpacing = (-1).sp
+                    letterSpacing = (-2.5).sp,
+                    lineHeight = 52.sp
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Keep streams available for later. Active tasks will appear here with clear progress and speed.",
-                    color = TextSecondary,
-                    fontSize = 13.sp
+                    color = Color(0xFFA2ADA6),
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp,
+                    modifier = Modifier.widthIn(max = 580.dp)
                 )
             }
 
             FocusableCard(
                 onClick = onOpenAddDialog,
-                containerColor = AccentPrimary,
-                focusedContainerColor = AccentSecondary,
-                contentColor = Color(0xFF0D0F0E),
-                focusedContentColor = Color(0xFF0D0F0E)
+                modifier = Modifier.height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                containerColor = Color(0xFFB8F53A),
+                focusedContainerColor = Color(0xFFCEF22C),
+                contentColor = Color(0xFF000000),
+                focusedContentColor = Color(0xFF000000)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 24.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.Add, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
-                    Text("New download", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
+                    Icon(Icons.Default.Add, null, tint = Color(0xFF000000), modifier = Modifier.size(20.dp))
+                    Text("New download", color = Color(0xFF000000), fontSize = 15.sp, fontWeight = FontWeight.Black)
                 }
             }
         }
 
-        // 2. Tabs Bar (if tasks exist)
-        if (tasks.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("ALL", "ACTIVE", "COMPLETED", "PAUSED").forEach { tab ->
-                        DownloadTabButton(
-                            text = tab,
-                            isSelected = selectedTab == tab,
-                            onClick = { selectedTab = tab }
-                        )
-                    }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FocusableCard(
-                        onClick = onPauseAll,
-                        containerColor = Color.White.copy(alpha = 0.05f)
-                    ) {
-                        Text(
-                            text = "Pause All",
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-
-                    FocusableCard(
-                        onClick = onResumeAll,
-                        containerColor = Color.White.copy(alpha = 0.05f)
-                    ) {
-                        Text(
-                            text = "Resume All",
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 3. Content Panel
+        // 2. Main Content Area
         if (filteredTasks.isEmpty()) {
+            // Large empty state card exactly as in screenshot
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(SurfaceDark.copy(alpha = 0.6f))
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp)),
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color(0xFF101311))
+                    .border(1.dp, Color(0xFF1F2421), RoundedCornerShape(28.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier.padding(32.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(40.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(76.dp)
+                            .size(72.dp)
                             .clip(RoundedCornerShape(22.dp))
-                            .background(Color.White.copy(alpha = 0.06f)),
+                            .background(Color.White.copy(alpha = 0.05f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Download,
                             contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(36.dp)
+                            tint = Color(0xFF7A857E),
+                            modifier = Modifier.size(34.dp)
                         )
                     }
 
                     Text(
                         text = "No downloads yet",
                         color = Color.White,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp
                     )
 
                     Text(
                         text = "Add a direct media URL. Download progress, speed and remaining time will stay visible here.",
-                        color = TextSecondary,
-                        fontSize = 13.sp,
+                        color = Color(0xFF8A968F),
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.widthIn(max = 480.dp)
                     )
                 }
             }
         } else {
+            // Task List
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .weight(1f)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color(0xFF101311))
+                    .border(1.dp, Color(0xFF1F2421), RoundedCornerShape(28.dp))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredTasks, key = { it.id }) { task ->
                     val live = liveProgress[task.id]
@@ -301,18 +272,18 @@ private fun DownloadTaskRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(84.dp),
-        shape = RoundedCornerShape(16.dp),
-        containerColor = CardDark.copy(alpha = 0.7f),
-        focusedContainerColor = CardDark
+        shape = RoundedCornerShape(18.dp),
+        containerColor = Color(0xFF181D1A),
+        focusedContainerColor = Color(0xFF222824),
+        focusedBorderColor = Color(0xFFB8F53A)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 18.dp),
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Icon + Title + Status
             Row(
                 modifier = Modifier.weight(1.5f),
                 verticalAlignment = Alignment.CenterVertically,
@@ -320,11 +291,11 @@ private fun DownloadTaskRow(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isCompleted) AccentEmerald.copy(alpha = 0.15f)
-                            else if (isActive) AccentPrimary.copy(alpha = 0.15f)
+                            if (isCompleted) Color(0xFF10B981).copy(alpha = 0.15f)
+                            else if (isActive) Color(0xFFB8F53A).copy(alpha = 0.15f)
                             else Color.White.copy(alpha = 0.05f)
                         ),
                     contentAlignment = Alignment.Center
@@ -332,8 +303,8 @@ private fun DownloadTaskRow(
                     Icon(
                         imageVector = if (isCompleted) Icons.Default.CheckCircle else if (isActive) Icons.Default.Download else Icons.Default.Movie,
                         contentDescription = null,
-                        tint = if (isCompleted) AccentEmerald else if (isActive) AccentPrimary else TextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        tint = if (isCompleted) Color(0xFF10B981) else if (isActive) Color(0xFFB8F53A) else Color(0xFFA2ADA6),
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -341,7 +312,7 @@ private fun DownloadTaskRow(
                     Text(
                         text = task.fileName,
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -352,15 +323,15 @@ private fun DownloadTaskRow(
                     ) {
                         Text(
                             text = task.status,
-                            color = if (isCompleted) AccentEmerald else if (isActive) AccentPrimary else TextSecondary,
+                            color = if (isCompleted) Color(0xFF10B981) else if (isActive) Color(0xFFB8F53A) else Color(0xFFA2ADA6),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         if (task.totalBytes > 0) {
-                            Text("•", color = TextTertiary, fontSize = 10.sp)
+                            Text("•", color = Color(0xFF6B726E), fontSize = 10.sp)
                             Text(
                                 text = "${formatBytes(task.downloadedBytes)} / ${formatBytes(task.totalBytes)}",
-                                color = TextTertiary,
+                                color = Color(0xFF8A968F),
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -369,11 +340,10 @@ private fun DownloadTaskRow(
                 }
             }
 
-            // Progress & Speed
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(0.85f),
@@ -381,14 +351,14 @@ private fun DownloadTaskRow(
                 ) {
                     Text(
                         text = live?.speed.takeIf { !it.isNullOrBlank() } ?: if (isCompleted) "Ready" else "",
-                        color = TextSecondary,
+                        color = Color(0xFFA2ADA6),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = "$progress%",
-                        color = if (isCompleted) AccentEmerald else AccentPrimary,
-                        fontSize = 12.sp,
+                        color = if (isCompleted) Color(0xFF10B981) else Color(0xFFB8F53A),
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
@@ -406,7 +376,7 @@ private fun DownloadTaskRow(
                             .fillMaxWidth(progress / 100f)
                             .fillMaxHeight()
                             .clip(CircleShape)
-                            .background(if (isCompleted) AccentEmerald else AccentPrimary)
+                            .background(if (isCompleted) Color(0xFF10B981) else Color(0xFFB8F53A))
                     )
                 }
             }
@@ -416,7 +386,7 @@ private fun DownloadTaskRow(
             FocusableCard(
                 onClick = onActionClick,
                 containerColor = Color.White.copy(alpha = 0.06f),
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(38.dp),
                 shape = CircleShape
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -428,29 +398,6 @@ private fun DownloadTaskRow(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun DownloadTabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    FocusableCard(
-        onClick = onClick,
-        containerColor = if (isSelected) Color.White else Color.Transparent,
-        focusedContainerColor = if (isSelected) Color.White else CardDark,
-        shape = RoundedCornerShape(10.dp)
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = if (isSelected) Color.Black else TextSecondary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
         }
     }
 }
@@ -469,10 +416,10 @@ private fun TaskActionDialog(
         Box(
             modifier = Modifier
                 .width(440.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(SurfaceDark)
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
-                .padding(24.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF121614))
+                .border(1.dp, Color(0xFF222824), RoundedCornerShape(24.dp))
+                .padding(26.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -481,22 +428,22 @@ private fun TaskActionDialog(
                 Text(
                     text = task.fileName,
                     color = Color.White,
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Black,
                     maxLines = 1,
                     textAlign = TextAlign.Center
                 )
 
                 if (task.status == "COMPLETED") {
-                    DialogActionButton(Icons.Default.PlayArrow, "Play Movie Now", AccentEmerald, onPlay)
-                    DialogActionButton(Icons.Default.PlaylistAdd, "Add to Playlist / Series", AccentPrimary, onAddToPlaylistPrompt)
+                    DialogActionButton(Icons.Default.PlayArrow, "Play Movie Now", Color(0xFF10B981), onPlay)
+                    DialogActionButton(Icons.Default.PlaylistAdd, "Add to Playlist / Series", Color(0xFFB8F53A), onAddToPlaylistPrompt)
                 } else if (task.status == "ACTIVE" || task.status == "PENDING") {
-                    DialogActionButton(Icons.Default.Pause, "Pause Download", AccentAmber, onPause)
+                    DialogActionButton(Icons.Default.Pause, "Pause Download", Color(0xFFFFB703), onPause)
                 } else {
-                    DialogActionButton(Icons.Default.PlayArrow, "Resume Download", AccentPrimary, onResume)
+                    DialogActionButton(Icons.Default.PlayArrow, "Resume Download", Color(0xFFB8F53A), onResume)
                 }
 
-                DialogActionButton(Icons.Default.Delete, "Delete File & Task", AccentRose) { onDelete(true) }
+                DialogActionButton(Icons.Default.Delete, "Delete File & Task", Color(0xFFEF4444)) { onDelete(true) }
                 DialogActionButton(Icons.Default.DeleteOutline, "Remove Task from List Only", Color.White.copy(alpha = 0.7f)) { onDelete(false) }
 
                 FocusableCard(
@@ -505,7 +452,7 @@ private fun TaskActionDialog(
                     modifier = Modifier.fillMaxWidth().height(40.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Cancel", color = TextTertiary, fontSize = 12.sp)
+                        Text("Cancel", color = Color(0xFF8A968F), fontSize = 12.sp)
                     }
                 }
             }
@@ -517,7 +464,8 @@ private fun TaskActionDialog(
 private fun DialogActionButton(icon: ImageVector, label: String, color: Color, onClick: () -> Unit) {
     FocusableCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(46.dp),
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+        shape = RoundedCornerShape(14.dp),
         containerColor = Color.White.copy(alpha = 0.05f)
     ) {
         Row(
