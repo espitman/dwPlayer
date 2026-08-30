@@ -4,17 +4,13 @@ package com.dwplayer.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -94,7 +90,13 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0x142A493B), Color.Transparent),
+                    radius = 680f
+                )
+            )
+            .padding(start = 42.dp, end = 42.dp, top = 18.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // Header
@@ -110,42 +112,40 @@ fun SettingsScreen(
             Text(
                 text = "Settings",
                 color = Color.White,
-                fontSize = 36.sp,
+                fontSize = 48.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = (-1).sp
+                letterSpacing = (-2).sp
             )
             Text(
                 text = "Connection, playback and storage details for this device.",
                 color = TextSecondary,
-                fontSize = 13.sp
+                fontSize = 14.sp
             )
         }
 
         // 2x2 Settings Grid
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // 1. Web Remote
                 SettingTile(
-                    title = "Web Remote",
-                    description = "Control playback and send links from any smartphone or PC on this Wi-Fi network.",
+                    title = "Web remote",
+                    description = "Control playback and send links from any device on this network.",
                     value = if (companionUrl.isNotBlank()) "${companionUrl.removePrefix("http://").removePrefix("https://").substringBefore("/")} • ACTIVE" else "OFFLINE",
-                    icon = Icons.Default.QrCode2,
                     onClick = { showQrDialog = true },
                     modifier = Modifier.weight(1f)
                 )
 
                 // 2. Playback
                 SettingTile(
-                    title = "Playback Engine",
-                    description = "ExoPlayer hardware video decoding, automated sequential series bingeing & resume.",
+                    title = "Playback",
+                    description = "Hardware decoding, subtitle defaults and resume behavior.",
                     value = "HARDWARE • AUTO RESUME",
-                    icon = Icons.Default.PlayCircle,
                     onClick = {},
                     modifier = Modifier.weight(1f)
                 )
@@ -153,14 +153,13 @@ fun SettingsScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // 3. Storage
                 SettingTile(
                     title = "Storage",
-                    description = "Manage downloaded movies, series seasons and local video archives on this TV.",
-                    value = "${storageInfo.freeSpace} FREE / ${storageInfo.totalSpace}",
-                    icon = Icons.Default.Storage,
+                    description = "Manage downloaded and archived media on this TV.",
+                    value = "${storageInfo.freeSpace} FREE",
                     onClick = {},
                     modifier = Modifier.weight(1f)
                 )
@@ -168,9 +167,8 @@ fun SettingsScreen(
                 // 4. About
                 SettingTile(
                     title = "About dwPlayer",
-                    description = "Built with Jetpack Compose for Android TV. Clean, privacy-first, zero ads.",
+                    description = "Build information and Android TV permissions.",
                     value = "VERSION 1.0 • ANDROID TV",
-                    icon = Icons.Default.Info,
                     onClick = {},
                     modifier = Modifier.weight(1f)
                 )
@@ -184,50 +182,33 @@ private fun SettingTile(
     title: String,
     description: String,
     value: String,
-    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     FocusableCard(
         onClick = onClick,
         modifier = modifier.fillMaxHeight(),
-        shape = RoundedCornerShape(20.dp),
-        containerColor = CardDark.copy(alpha = 0.7f),
-        focusedContainerColor = CardDark
+        shape = RoundedCornerShape(21.dp),
+        containerColor = SurfaceDark.copy(alpha = 0.58f),
+        focusedContainerColor = CardDark,
+        borderColor = Color.White.copy(alpha = 0.10f),
+        focusedBorderColor = AccentPrimary,
+        scale = 1.018f
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(22.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(20.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.06f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = AccentPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 21.sp,
+                lineHeight = 25.sp,
+                fontWeight = FontWeight.Bold
+            )
 
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = description,
                 color = TextSecondary,
@@ -237,11 +218,11 @@ private fun SettingTile(
                 overflow = TextOverflow.Ellipsis
             )
 
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = value,
-                color = AccentPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
                 letterSpacing = 0.5.sp
             )

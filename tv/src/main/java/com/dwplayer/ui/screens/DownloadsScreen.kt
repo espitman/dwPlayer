@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -66,7 +67,13 @@ fun DownloadsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 32.dp, end = 48.dp, top = 8.dp, bottom = 32.dp),
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0x142A493B), Color.Transparent),
+                    radius = 680f
+                )
+            )
+            .padding(start = 42.dp, end = 42.dp, top = 18.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // 1. Header (Matching screenshot-2026-08-30T16-38-03-301Z.png)
@@ -134,9 +141,9 @@ fun DownloadsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xFF101311))
-                    .border(1.dp, Color(0xFF1F2421), RoundedCornerShape(28.dp)),
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(SurfaceDark.copy(alpha = 0.48f))
+                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -183,10 +190,10 @@ fun DownloadsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xFF101311))
-                    .border(1.dp, Color(0xFF1F2421), RoundedCornerShape(28.dp))
-                    .padding(20.dp),
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(SurfaceDark.copy(alpha = 0.48f))
+                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(24.dp))
+                    .padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredTasks, key = { it.id }) { task ->
