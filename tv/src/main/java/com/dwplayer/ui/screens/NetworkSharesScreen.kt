@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,10 +23,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import kotlinx.coroutines.delay
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,9 +41,10 @@ import com.dwplayer.data.models.SmbItem
 import com.dwplayer.data.models.WebDavItem
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
+import kotlinx.coroutines.delay
 
 enum class NetworkTab {
-    WEBDAV, SMB, DISCOVERY
+    ALL, WEBDAV, SMB, DISCOVERY
 }
 
 @Composable
@@ -77,7 +82,8 @@ fun NetworkSharesScreen(
     discoveredServers: List<DiscoveredServerDto>,
     onAddDiscoveredServer: (DiscoveredServerDto) -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(NetworkTab.WEBDAV) }
+    var selectedTab by remember { mutableStateOf(NetworkTab.ALL) }
+    var showAddOptionsDialog by remember { mutableStateOf(false) }
     var showAddSmbDialog by remember { mutableStateOf(false) }
     var showAddWebDavDialog by remember { mutableStateOf(false) }
     var actionWebDavServer by remember { mutableStateOf<WebDavServerEntity?>(null) }
@@ -116,12 +122,12 @@ fun NetworkSharesScreen(
         return
     }
 
-    // Main Hub
+    // Main Hub: Modern Source Grid
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         // Header & Actions
         Row(
@@ -129,365 +135,159 @@ fun NetworkSharesScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "NETWORK STREAMING & SHARES",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
+                    text = "LOCAL & REMOTE SOURCES",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.5.sp
                 )
                 Text(
-                    text = "Stream smoothly from WebDAV, Android Phones, PC/Mac, or NAS",
+                    text = "Network",
+                    color = Color.White,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp
+                )
+                Text(
+                    text = "Browse devices and shared folders on your home network without moving files to the TV.",
                     color = TextSecondary,
-                    fontSize = 12.sp
+                    fontSize = 13.sp
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (selectedTab == NetworkTab.WEBDAV) {
-                    FocusableCard(
-                        onClick = { showAddWebDavDialog = true },
-                        containerColor = AccentPrimary,
-                        focusedContainerColor = AccentSecondary
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Text("Add WebDAV", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                } else if (selectedTab == NetworkTab.SMB) {
-                    FocusableCard(
-                        onClick = { showAddSmbDialog = true },
-                        containerColor = AccentPrimary,
-                        focusedContainerColor = AccentSecondary
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Text("Add SMB", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+            FocusableCard(
+                onClick = { showAddOptionsDialog = true },
+                containerColor = AccentPrimary,
+                focusedContainerColor = AccentSecondary,
+                contentColor = Color(0xFF0D0F0E),
+                focusedContentColor = Color(0xFF0D0F0E)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Add, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
+                    Text("Add Source", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
                 }
             }
         }
 
-        // Protocol Selector Tabs
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Protocol Filter Tabs
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val tabs = listOf(
-                Triple(NetworkTab.WEBDAV, "WebDAV & Phone Servers", Icons.Default.CloudQueue),
-                Triple(NetworkTab.SMB, "Windows / NAS (SMB)", Icons.Default.FolderShared),
-                Triple(NetworkTab.DISCOVERY, "Discovered Devices (${discoveredServers.size})", Icons.Default.Sensors)
+                NetworkTab.ALL to "All Sources",
+                NetworkTab.WEBDAV to "WebDAV & Phone (${webDavServers.size})",
+                NetworkTab.SMB to "SMB Shares (${smbShares.size})",
+                NetworkTab.DISCOVERY to "Discovered (${discoveredServers.size})"
             )
 
-            tabs.forEach { (tab, title, icon) ->
+            tabs.forEach { (tab, label) ->
                 val isSelected = selectedTab == tab
                 FocusableCard(
                     onClick = { selectedTab = tab },
-                    containerColor = if (isSelected) AccentPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
-                    focusedContainerColor = AccentPrimary.copy(alpha = 0.5f)
+                    shape = RoundedCornerShape(10.dp),
+                    containerColor = if (isSelected) Color.White else Color.Transparent,
+                    focusedContainerColor = if (isSelected) Color.White else CardDark
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .border(
-                                width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = if (isSelected) AccentSecondary else Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
                         Text(
-                            text = title,
-                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.8f),
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            text = label,
+                            color = if (isSelected) Color.Black else TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
                         )
                     }
                 }
             }
         }
 
-        // Tab Content
-        when (selectedTab) {
-            NetworkTab.WEBDAV -> {
-                if (webDavServers.isEmpty()) {
-                    EmptyNetworkView(
-                        icon = Icons.Default.CloudQueue,
-                        title = "No WebDAV Servers Added",
-                        subtitle = "Add a WebDAV endpoint or connect to our Android Phone companion app.",
-                        buttonText = "Add WebDAV Server",
-                        onButtonClick = { showAddWebDavDialog = true }
+        // Grid Content
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp)
+        ) {
+            // WebDAV Servers
+            if (selectedTab == NetworkTab.ALL || selectedTab == NetworkTab.WEBDAV) {
+                items(webDavServers, key = { "webdav_${it.id}" }) { server ->
+                    NetworkSourceCard(
+                        title = server.name,
+                        subtitle = server.serverUrl,
+                        protocol = if (server.isAutoDiscovered) "PHONE" else "WEBDAV",
+                        icon = if (server.isAutoDiscovered) Icons.Default.PhoneAndroid else Icons.Default.CloudQueue,
+                        isOnline = true,
+                        onClick = { onSelectWebDavServer(server) },
+                        onLongClick = { actionWebDavServer = server }
                     )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(webDavServers, key = { it.id }) { server ->
-                            FocusableCard(
-                                onClick = { onSelectWebDavServer(server) },
-                                onLongClick = { actionWebDavServer = server },
-                                modifier = Modifier.fillMaxWidth(),
-                                containerColor = CardDark
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .padding(end = 16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .background(AccentPrimary.copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (server.isAutoDiscovered) Icons.Default.PhoneAndroid else Icons.Default.CloudQueue,
-                                                contentDescription = null,
-                                                tint = AccentSecondary,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
-
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Text(
-                                                    text = server.name,
-                                                    color = Color.White,
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                if (server.isAutoDiscovered) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(4.dp))
-                                                            .background(Color(0xFF10B981).copy(alpha = 0.2f))
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text("Auto-Discovered", color = Color(0xFF10B981), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                    }
-                                                }
-                                            }
-                                            Text(
-                                                text = server.serverUrl,
-                                                color = TextSecondary,
-                                                fontSize = 12.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text("Hold for Options", color = TextTertiary, fontSize = 11.sp)
-                                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
-            NetworkTab.SMB -> {
-                if (smbShares.isEmpty()) {
-                    EmptyNetworkView(
+            // SMB Shares
+            if (selectedTab == NetworkTab.ALL || selectedTab == NetworkTab.SMB) {
+                items(smbShares, key = { "smb_${it.id}" }) { share ->
+                    NetworkSourceCard(
+                        title = share.name,
+                        subtitle = "smb://${share.host}/${share.shareName}",
+                        protocol = "SMB",
                         icon = Icons.Default.FolderShared,
-                        title = "No SMB Shares Configured",
-                        subtitle = "Connect to Windows shared folders, Mac, Linux, or NAS devices.",
-                        buttonText = "Add SMB Share",
-                        onButtonClick = { showAddSmbDialog = true }
+                        isOnline = true,
+                        onClick = { onSelectSmbShare(share) },
+                        onLongClick = { actionSmbShare = share }
                     )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(smbShares, key = { it.id }) { share ->
-                            FocusableCard(
-                                onClick = { onSelectSmbShare(share) },
-                                onLongClick = { actionSmbShare = share },
-                                modifier = Modifier.fillMaxWidth(),
-                                containerColor = CardDark
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .padding(end = 16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .background(AccentPrimary.copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(Icons.Default.FolderShared, contentDescription = null, tint = AccentSecondary, modifier = Modifier.size(24.dp))
-                                        }
-
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                                        ) {
-                                            Text(
-                                                text = share.name,
-                                                color = Color.White,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = "smb://${share.host}/${share.shareName}",
-                                                color = TextSecondary,
-                                                fontSize = 12.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text("Hold for Options", color = TextTertiary, fontSize = 11.sp)
-                                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
-            NetworkTab.DISCOVERY -> {
-                if (discoveredServers.isEmpty()) {
-                    EmptyNetworkView(
-                        icon = Icons.Default.Sensors,
-                        title = "Scanning Local Wi-Fi Network...",
-                        subtitle = "Turn on the dwShare Phone app or WebDAV server on your Wi-Fi network to detect it automatically.",
-                        buttonText = "Refresh Network",
-                        onButtonClick = {}
+            // Discovered Servers
+            if (selectedTab == NetworkTab.ALL || selectedTab == NetworkTab.DISCOVERY) {
+                items(discoveredServers, key = { "disc_${it.host}_${it.port}" }) { item ->
+                    NetworkSourceCard(
+                        title = item.serviceName,
+                        subtitle = item.url,
+                        protocol = item.deviceType.uppercase(),
+                        icon = Icons.Default.WifiTethering,
+                        isOnline = true,
+                        onClick = { onAddDiscoveredServer(item) },
+                        onLongClick = { onAddDiscoveredServer(item) }
                     )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                }
+            }
+
+            // Add New Source Tile
+            item {
+                FocusableCard(
+                    onClick = { showAddOptionsDialog = true },
+                    modifier = Modifier.height(130.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    containerColor = CardDark.copy(alpha = 0.4f),
+                    focusedContainerColor = CardDark
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(18.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        items(discoveredServers, key = { "${it.host}:${it.port}" }) { item ->
-                            FocusableCard(
-                                onClick = { onAddDiscoveredServer(item) },
-                                modifier = Modifier.fillMaxWidth(),
-                                containerColor = CardDark
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .padding(end = 16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF10B981).copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(Icons.Default.WifiTethering, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(24.dp))
-                                        }
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.06f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, null, tint = AccentPrimary, modifier = Modifier.size(20.dp))
+                        }
 
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Text(
-                                                    text = item.serviceName,
-                                                    color = Color.White,
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(4.dp))
-                                                        .background(AccentPrimary.copy(alpha = 0.2f))
-                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                ) {
-                                                    Text(item.deviceType, color = AccentSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                            Text(
-                                                text = item.url,
-                                                color = TextSecondary,
-                                                fontSize = 12.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text("Click to Connect", color = AccentSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        Icon(Icons.Default.AddLink, contentDescription = null, tint = AccentSecondary)
-                                    }
-                                }
-                            }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Add Source", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("Connect a new SMB or WebDAV server", color = TextSecondary, fontSize = 12.sp)
                         }
                     }
                 }
@@ -495,9 +295,79 @@ fun NetworkSharesScreen(
         }
     }
 
-    // Long-Press Action Dialog for WebDAV Server
-    if (actionWebDavServer != null) {
-        val target = actionWebDavServer!!
+    // Add Options Modal
+    if (showAddOptionsDialog) {
+        Dialog(onDismissRequest = { showAddOptionsDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .width(440.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(SurfaceDark)
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+                    .padding(24.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("Add Network Source", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                    Text("Select the connection protocol you want to configure:", color = TextSecondary, fontSize = 12.sp)
+
+                    FocusableCard(
+                        onClick = {
+                            showAddOptionsDialog = false
+                            showAddWebDavDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        containerColor = CardDark
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(Icons.Default.CloudQueue, null, tint = AccentPrimary, modifier = Modifier.size(22.dp))
+                            Column {
+                                Text("WebDAV / Phone Companion", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("HTTP/HTTPS endpoints or Android Companion", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                    }
+
+                    FocusableCard(
+                        onClick = {
+                            showAddOptionsDialog = false
+                            showAddSmbDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        containerColor = CardDark
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(Icons.Default.FolderShared, null, tint = AccentPrimary, modifier = Modifier.size(22.dp))
+                            Column {
+                                Text("SMB Network Share", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("Windows, Mac, Linux, NAS (SMBv2/v3)", color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                    }
+
+                    FocusableCard(
+                        onClick = { showAddOptionsDialog = false },
+                        containerColor = Color.Transparent,
+                        modifier = Modifier.fillMaxWidth().height(38.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Cancel", color = TextTertiary, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Action dialogs
+    actionWebDavServer?.let { target ->
         NetworkServerActionDialog(
             title = target.name,
             subtitle = target.serverUrl,
@@ -514,9 +384,7 @@ fun NetworkSharesScreen(
         )
     }
 
-    // Long-Press Action Dialog for SMB Share
-    if (actionSmbShare != null) {
-        val target = actionSmbShare!!
+    actionSmbShare?.let { target ->
         NetworkServerActionDialog(
             title = target.name,
             subtitle = "smb://${target.host}/${target.shareName}",
@@ -533,9 +401,7 @@ fun NetworkSharesScreen(
         )
     }
 
-    // Delete Confirmation for WebDAV Server
-    if (confirmDeleteWebDav != null) {
-        val target = confirmDeleteWebDav!!
+    confirmDeleteWebDav?.let { target ->
         NetworkDeleteConfirmDialog(
             title = "Delete WebDAV Server",
             itemName = target.name,
@@ -548,9 +414,7 @@ fun NetworkSharesScreen(
         )
     }
 
-    // Delete Confirmation for SMB Share
-    if (confirmDeleteSmb != null) {
-        val target = confirmDeleteSmb!!
+    confirmDeleteSmb?.let { target ->
         NetworkDeleteConfirmDialog(
             title = "Delete SMB Share",
             itemName = target.name,
@@ -587,10 +451,93 @@ fun NetworkSharesScreen(
 }
 
 @Composable
+private fun NetworkSourceCard(
+    title: String,
+    subtitle: String,
+    protocol: String,
+    icon: ImageVector,
+    isOnline: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    FocusableCard(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        modifier = Modifier.height(130.dp),
+        shape = RoundedCornerShape(20.dp),
+        containerColor = CardDark.copy(alpha = 0.7f),
+        focusedContainerColor = CardDark
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.06f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = AccentPrimary, modifier = Modifier.size(20.dp))
+                }
+
+                if (isOnline) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(AccentEmerald)
+                        )
+                        Text(
+                            text = "ONLINE",
+                            color = AccentEmerald,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    fontFamily = FontFamily.Monospace,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun NetworkServerActionDialog(
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
@@ -625,119 +572,74 @@ private fun NetworkServerActionDialog(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f)),
-            contentAlignment = Alignment.Center
+                .width(440.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceDark)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+                .padding(24.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .width(480.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(CardDark)
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Focusable Safe Info Header (Lands initial focus safely)
-                FocusableCard(
-                    onClick = {},
-                    containerColor = SurfaceDark.copy(alpha = 0.6f),
-                    focusedContainerColor = SurfaceDark,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(headerFocusRequester)
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.06f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(AccentPrimary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = AccentPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = title,
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = subtitle,
-                                color = TextSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Icon(icon, null, tint = AccentPrimary, modifier = Modifier.size(22.dp))
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text(subtitle, color = TextSecondary, fontSize = 11.sp, maxLines = 1, fontFamily = FontFamily.Monospace)
                     }
                 }
 
-                // Actions
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Open / Browse
                     FocusableCard(
                         onClick = safeOpen,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        containerColor = AccentPrimary.copy(alpha = 0.85f),
-                        focusedContainerColor = AccentSecondary
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        containerColor = AccentPrimary,
+                        focusedContainerColor = AccentSecondary,
+                        contentColor = Color(0xFF0D0F0E),
+                        focusedContentColor = Color(0xFF0D0F0E)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.FolderOpen, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Text("Open / Browse Share", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.FolderOpen, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
+                            Text("Open & Browse Files", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
                         }
                     }
 
-                    // Delete Server / Share
                     FocusableCard(
                         onClick = safeDelete,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        containerColor = Color.Red.copy(alpha = 0.15f),
-                        focusedContainerColor = Color.Red.copy(alpha = 0.45f)
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        containerColor = AccentRose.copy(alpha = 0.15f),
+                        focusedContainerColor = AccentRose
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.Delete, null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(20.dp))
-                            Text("Delete Connection", color = Color(0xFFFF6B6B), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.Delete, null, tint = AccentRose, modifier = Modifier.size(18.dp))
+                            Text("Delete Connection", color = AccentRose, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    // Cancel
                     FocusableCard(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        containerColor = Color.White.copy(alpha = 0.08f)
+                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                        containerColor = Color.Transparent
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Cancel", color = TextTertiary, fontSize = 12.sp)
                         }
                     }
                 }
@@ -754,107 +656,44 @@ private fun NetworkDeleteConfirmDialog(
     onConfirmDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val openedAt = remember { System.currentTimeMillis() }
-    val safeConfirm = remember(onConfirmDelete) {
-        {
-            if (System.currentTimeMillis() - openedAt > 500L) {
-                onConfirmDelete()
-            }
-        }
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f)),
-            contentAlignment = Alignment.Center
+                .width(440.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceDark)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+                .padding(24.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .width(480.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(CardDark)
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                    .padding(28.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(Color.Red.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.DeleteForever, null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(24.dp))
-                    }
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-                        .padding(14.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(itemName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(itemDetails, color = TextTertiary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-
-                Text(
-                    text = "Are you sure you want to remove this connection from your TV? You can always add it back later.",
-                    color = TextSecondary,
-                    fontSize = 12.sp
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text("Remove \"$itemName\" ($itemDetails) from your TV connections?", color = TextSecondary, fontSize = 12.sp)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     FocusableCard(
-                        onClick = safeConfirm,
-                        containerColor = AccentRose,
-                        focusedContainerColor = Color(0xFFE11D48),
-                        modifier = Modifier.weight(1f).height(44.dp)
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = Color.White.copy(alpha = 0.08f)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Delete Connection",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                            )
+                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     FocusableCard(
-                        onClick = onDismiss,
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.weight(1f).height(44.dp)
+                        onClick = onConfirmDelete,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = AccentRose.copy(alpha = 0.85f),
+                        focusedContainerColor = AccentRose
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Cancel",
-                                color = TextSecondary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                            )
+                            Text("Delete", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -897,39 +736,34 @@ private fun WebDavBrowserView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 36.dp),
+            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Top Path Navigation Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = server.name,
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Black
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(server.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
                 Text(
                     text = if (path.isBlank() || path == "/") "Root Directory" else path,
-                    color = AccentSecondary,
-                    fontSize = 12.sp
+                    color = AccentPrimary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
 
             FocusableCard(
                 onClick = onBack,
-                containerColor = Color.White.copy(alpha = 0.1f)
+                containerColor = Color.White.copy(alpha = 0.08f)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.ArrowBack, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Text(if (path.isBlank() || path == "/") "Exit Server" else "Up One Level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -937,19 +771,15 @@ private fun WebDavBrowserView(
 
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Connecting and loading files...", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                Text("Loading files...", color = TextSecondary, fontSize = 14.sp)
             }
         } else if (errorMessage != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(36.dp))
-                    Text("Connection Error", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text(errorMessage, color = TextSecondary, fontSize = 12.sp)
-                }
+                Text("Error: $errorMessage", color = AccentRose, fontSize = 14.sp)
             }
         } else if (items.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("This folder is empty", color = TextSecondary, fontSize = 14.sp)
+                Text("This folder is empty", color = TextTertiary, fontSize = 14.sp)
             }
         } else {
             LazyColumn(
@@ -959,84 +789,39 @@ private fun WebDavBrowserView(
                 items(items, key = { it.path }) { item ->
                     FocusableCard(
                         onClick = {
-                            if (item.isDirectory) {
-                                onNavigate(item.path)
-                            } else if (item.isVideo) {
-                                onPlay(item)
-                            }
+                            if (item.isDirectory) onNavigate(item.path)
+                            else if (item.isVideo) onPlay(item)
                         },
-                        onLongClick = {
-                            if (item.isVideo) {
-                                actionItem = item
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(64.dp),
-                        containerColor = CardDark
+                        onLongClick = { if (item.isVideo) actionItem = item },
+                        modifier = Modifier.fillMaxWidth().height(64.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        containerColor = CardDark.copy(alpha = 0.7f),
+                        focusedContainerColor = CardDark
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 16.dp),
+                                modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
-                                    imageVector = when {
-                                        item.isDirectory -> Icons.Default.Folder
-                                        item.isVideo -> Icons.Default.PlayCircle
-                                        else -> Icons.Default.InsertDriveFile
-                                    },
+                                    imageVector = if (item.isDirectory) Icons.Default.Folder else Icons.Default.Movie,
                                     contentDescription = null,
-                                    tint = when {
-                                        item.isDirectory -> AccentSecondary
-                                        item.isVideo -> Color(0xFF10B981)
-                                        else -> Color.White.copy(alpha = 0.4f)
-                                    },
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (item.isDirectory) TextSecondary else AccentPrimary,
+                                    modifier = Modifier.size(22.dp)
                                 )
-
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = item.name,
-                                        color = Color.White,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = item.formattedSize,
-                                        color = TextSecondary,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(item.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(item.formattedSize, color = TextSecondary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                                 }
                             }
 
                             if (item.isVideo) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text("Hold to Download", color = TextSecondary, fontSize = 10.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Stream", color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
-                                }
-                            } else if (item.isDirectory) {
-                                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.4f))
+                                Text("Stream", color = AccentPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1079,27 +864,34 @@ private fun SmbBrowserView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 36.dp),
+            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Navigation Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(text = share.name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                Text(text = if (path.isBlank() || path == "/") "Root Directory" else path, color = AccentSecondary, fontSize = 12.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(share.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Text(
+                    text = if (path.isBlank() || path == "/") "Root Directory" else path,
+                    color = AccentPrimary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
 
-            FocusableCard(onClick = onBack, containerColor = Color.White.copy(alpha = 0.1f)) {
+            FocusableCard(
+                onClick = onBack,
+                containerColor = Color.White.copy(alpha = 0.08f)
+            ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.ArrowBack, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Text(if (path.isBlank() || path == "/") "Exit Share" else "Up One Level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -1107,11 +899,11 @@ private fun SmbBrowserView(
 
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Loading SMB directory...", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                Text("Loading SMB directory...", color = TextSecondary, fontSize = 14.sp)
             }
         } else if (items.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("This folder is empty", color = TextSecondary, fontSize = 14.sp)
+                Text("This folder is empty", color = TextTertiary, fontSize = 14.sp)
             }
         } else {
             LazyColumn(
@@ -1122,74 +914,39 @@ private fun SmbBrowserView(
                     val isVideo = !item.isDirectory && item.name.substringAfterLast('.', "").lowercase() in listOf("mp4", "mkv", "avi", "mov", "webm", "ts", "m4v")
                     FocusableCard(
                         onClick = {
-                            if (item.isDirectory) {
-                                onNavigate(item.path)
-                            } else if (isVideo) {
-                                onPlay(item.path, item.name)
-                            }
+                            if (item.isDirectory) onNavigate(item.path)
+                            else if (isVideo) onPlay(item.path, item.name)
                         },
-                        onLongClick = {
-                            if (isVideo) {
-                                actionItem = item
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(64.dp),
-                        containerColor = CardDark
+                        onLongClick = { if (isVideo) actionItem = item },
+                        modifier = Modifier.fillMaxWidth().height(64.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        containerColor = CardDark.copy(alpha = 0.7f),
+                        focusedContainerColor = CardDark
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 16.dp),
+                                modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (item.isDirectory) Icons.Default.Folder else if (isVideo) Icons.Default.Movie else Icons.Default.InsertDriveFile,
+                                    imageVector = if (item.isDirectory) Icons.Default.Folder else Icons.Default.Movie,
                                     contentDescription = null,
-                                    tint = if (item.isDirectory) AccentSecondary else if (isVideo) Color(0xFF10B981) else Color.White.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (item.isDirectory) TextSecondary else AccentPrimary,
+                                    modifier = Modifier.size(22.dp)
                                 )
-
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = item.name,
-                                        color = Color.White,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = if (item.isDirectory) "Folder" else "${item.size / (1024 * 1024)} MB",
-                                        color = TextSecondary,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(item.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(if (item.isDirectory) "Folder" else "${item.size / (1024 * 1024)} MB", color = TextSecondary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                                 }
                             }
 
                             if (isVideo) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text("Hold to Download", color = TextSecondary, fontSize = 10.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Play SMB", color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
-                                }
+                                Text("Play SMB", color = AccentPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1207,212 +964,65 @@ fun NetworkMediaActionDialog(
     onDownload: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val headerFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        delay(100)
-        try {
-            headerFocusRequester.requestFocus()
-        } catch (e: Exception) {}
-    }
-
-    val openedAt = remember { System.currentTimeMillis() }
-    val safePlay = remember(onPlay) {
-        {
-            if (System.currentTimeMillis() - openedAt > 500L) {
-                onPlay()
-            }
-        }
-    }
-    val safeDownload = remember(onDownload) {
-        {
-            if (System.currentTimeMillis() - openedAt > 500L) {
-                onDownload()
-            }
-        }
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f)),
-            contentAlignment = Alignment.Center
+                .width(440.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceDark)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+                .padding(24.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .width(480.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(CardDark)
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Focusable Safe Info Header (Lands initial focus safely)
-                FocusableCard(
-                    onClick = {},
-                    containerColor = SurfaceDark.copy(alpha = 0.6f),
-                    focusedContainerColor = SurfaceDark,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(headerFocusRequester)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(AccentPrimary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Movie,
-                                contentDescription = null,
-                                tint = AccentPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = title,
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Size: $sizeText",
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 2)
+                Text("Size: $sizeText", color = TextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
 
-                // Action Buttons
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Play / Stream Online
                     FocusableCard(
-                        onClick = safePlay,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        containerColor = AccentPrimary.copy(alpha = 0.85f),
-                        focusedContainerColor = AccentPrimary
+                        onClick = onPlay,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        containerColor = AccentPrimary,
+                        focusedContainerColor = AccentSecondary,
+                        contentColor = Color(0xFF0D0F0E),
+                        focusedContentColor = Color(0xFF0D0F0E)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Text("Stream Now", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.PlayArrow, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
+                            Text("Stream Now", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
                         }
                     }
 
-                    // Download / Transfer to TV Storage
                     FocusableCard(
-                        onClick = safeDownload,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        containerColor = Color(0xFF10B981).copy(alpha = 0.15f),
-                        focusedContainerColor = Color(0xFF10B981),
-                        focusedContentColor = Color.White
+                        onClick = onDownload,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        containerColor = Color.White.copy(alpha = 0.08f)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(22.dp))
-                            Column {
-                                Text("Download to TV Storage", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text("Save locally for offline playback", color = TextSecondary, fontSize = 10.sp)
-                            }
+                            Icon(Icons.Default.Download, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Text("Download to TV", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    // Cancel
                     FocusableCard(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        containerColor = Color.White.copy(alpha = 0.06f)
+                        containerColor = Color.Transparent,
+                        modifier = Modifier.fillMaxWidth().height(38.dp)
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Cancel", color = TextTertiary, fontSize = 12.sp)
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyNetworkView(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    buttonText: String,
-    onButtonClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.02f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(AccentPrimary.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = AccentSecondary, modifier = Modifier.size(32.dp))
-            }
-            Text(text = title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text(text = subtitle, color = TextSecondary, fontSize = 13.sp)
-
-            Spacer(modifier = Modifier.height(6.dp))
-            FocusableCard(
-                onClick = onButtonClick,
-                containerColor = AccentPrimary,
-                focusedContainerColor = AccentSecondary
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Text(buttonText, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1437,15 +1047,14 @@ private fun AddWebDavDialog(
     ) {
         Box(
             modifier = Modifier
-                .width(640.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(BgDark)
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                .width(520.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceDark)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
                 .padding(24.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("Add WebDAV Server", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Enter WebDAV URL, Android Phone dwShare IP, or NAS endpoint", color = TextSecondary, fontSize = 12.sp)
+                Text("Add WebDAV Server", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     TvInputRow("Name", name, "e.g. My Phone / NAS WebDAV") { name = it }
@@ -1455,7 +1064,7 @@ private fun AddWebDavDialog(
                 }
 
                 if (errorMessage != null) {
-                    Text(errorMessage!!, color = Color.Red, fontSize = 12.sp)
+                    Text(errorMessage!!, color = AccentRose, fontSize = 12.sp)
                 }
 
                 Row(
@@ -1465,9 +1074,9 @@ private fun AddWebDavDialog(
                 ) {
                     FocusableCard(
                         onClick = onDismiss,
-                        containerColor = Color.White.copy(alpha = 0.1f)
+                        containerColor = Color.White.copy(alpha = 0.08f)
                     ) {
-                        Text("Cancel", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                        Text("Cancel", color = TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1482,20 +1091,20 @@ private fun AddWebDavDialog(
                             errorMessage = null
                             onConfirm(name, url, username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }) { success, msg ->
                                 isTesting = false
-                                if (!success) {
-                                    errorMessage = msg
-                                }
+                                if (!success) errorMessage = msg
                             }
                         },
                         containerColor = AccentPrimary,
-                        focusedContainerColor = AccentSecondary
+                        focusedContainerColor = AccentSecondary,
+                        contentColor = Color(0xFF0D0F0E),
+                        focusedContentColor = Color(0xFF0D0F0E)
                     ) {
                         Text(
                             if (isTesting) "Testing..." else "Connect & Save",
-                            color = Color.White,
+                            color = Color(0xFF0D0F0E),
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
                         )
                     }
                 }
@@ -1521,14 +1130,14 @@ private fun AddSmbShareDialog(
     ) {
         Box(
             modifier = Modifier
-                .width(640.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(BgDark)
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                .width(520.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceDark)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
                 .padding(24.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("Add SMB Share", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Add SMB Share", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     TvInputRow("Name", name, "e.g. Living Room PC") { name = it }
@@ -1543,8 +1152,8 @@ private fun AddSmbShareDialog(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FocusableCard(onClick = onDismiss, containerColor = Color.White.copy(alpha = 0.1f)) {
-                        Text("Cancel", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                    FocusableCard(onClick = onDismiss, containerColor = Color.White.copy(alpha = 0.08f)) {
+                        Text("Cancel", color = TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1556,9 +1165,11 @@ private fun AddSmbShareDialog(
                             }
                         },
                         containerColor = AccentPrimary,
-                        focusedContainerColor = AccentSecondary
+                        focusedContainerColor = AccentSecondary,
+                        contentColor = Color(0xFF0D0F0E),
+                        focusedContentColor = Color(0xFF0D0F0E)
                     ) {
-                        Text("Save Share", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                        Text("Save Share", color = Color(0xFF0D0F0E), fontSize = 12.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
                     }
                 }
             }
@@ -1578,20 +1189,20 @@ private fun TvInputRow(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.White.copy(alpha = 0.05f))
-                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(CardDark)
+                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
-                cursorBrush = SolidColor(AccentSecondary),
+                textStyle = TextStyle(color = Color.White, fontSize = 13.sp, fontFamily = FontFamily.Monospace),
+                cursorBrush = SolidColor(AccentPrimary),
                 modifier = Modifier.fillMaxWidth(),
                 decorationBox = { innerTextField ->
                     if (value.isEmpty()) {
-                        Text(placeholder, color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
+                        Text(placeholder, color = TextTertiary, fontSize = 13.sp)
                     }
                     innerTextField()
                 }

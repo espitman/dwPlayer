@@ -616,3 +616,61 @@ fun DeletePlaylistConfirmDialog(
         }
     }
 }
+
+/**
+ * Confirmation dialog to safely remove an item/episode from a Playlist.
+ */
+@Composable
+fun RemovePlaylistItemConfirmDialog(
+    itemTitle: String,
+    onDismiss: () -> Unit,
+    onConfirmRemove: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(440.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(SurfaceDark)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+                .padding(26.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Remove from Playlist?", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text("Remove \"$itemTitle\" from this playlist? The file will remain safely on storage.", color = TextSecondary, fontSize = 12.sp)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    FocusableCard(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = Color.White.copy(alpha = 0.08f)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    FocusableCard(
+                        onClick = {
+                            onConfirmRemove()
+                            onDismiss()
+                        },
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = AccentRose.copy(alpha = 0.85f),
+                        focusedContainerColor = AccentRose
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Remove", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

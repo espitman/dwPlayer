@@ -24,13 +24,10 @@ import com.dwplayer.core.downloader.DownloadService
 import com.dwplayer.core.webserver.KtorService
 import com.dwplayer.ui.components.AnimatedBackground
 import com.dwplayer.ui.components.NavDestination
+import com.dwplayer.ui.components.TopStatusBar
 import com.dwplayer.ui.components.TvSidebar
 import com.dwplayer.ui.player.PlayerActivity
-import com.dwplayer.ui.screens.AddDownloadDialog
-import com.dwplayer.ui.screens.DownloadsScreen
-import com.dwplayer.ui.screens.HomeScreen
-import com.dwplayer.ui.screens.MediaArchiveScreen
-import com.dwplayer.ui.screens.SmbBrowserScreen
+import com.dwplayer.ui.screens.*
 import com.dwplayer.ui.theme.DwPlayerTheme
 import com.dwplayer.ui.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -92,7 +89,7 @@ class MainActivity : ComponentActivity() {
                         // 1. Ambient Animated Background
                         AnimatedBackground()
 
-                        // 2. Main Navigation Layout
+                        // 2. Main Navigation Layout (Left Icon Rail + Content)
                         Row(modifier = Modifier.fillMaxSize()) {
                             TvSidebar(
                                 currentDestination = currentDestination,
@@ -101,142 +98,166 @@ class MainActivity : ComponentActivity() {
                                 firstItemFocusRequester = sidebarFocusRequester
                             )
 
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                when (currentDestination) {
-                                    NavDestination.HOME -> {
-                                        HomeScreen(
-                                            historyList = historyList,
-                                            activeTasks = tasks.filter { it.status == "ACTIVE" || it.status == "PENDING" },
-                                            liveProgress = liveProgress,
-                                            smbShares = smbShares,
-                                            storageInfo = storageInfo,
-                                            companionUrl = companionUrl,
-                                            onPlayMedia = { uri, title, isSmb ->
-                                                playMedia(uri, title, isSmb)
-                                            },
-                                            onNavigateDownloads = { currentDestination = NavDestination.DOWNLOADS },
-                                            onNavigateSmb = { currentDestination = NavDestination.SMB },
-                                            onOpenAddDialog = { showAddDialog = true },
-                                            onClearHistory = { viewModel.clearPlaybackHistory() }
-                                        )
-                                    }
-                                    NavDestination.DOWNLOADS -> {
-                                        DownloadsScreen(
-                                            tasks = tasks,
-                                            liveProgress = liveProgress,
-                                            playlists = playlists,
-                                            onPlayTask = { task ->
-                                                val file = File(task.targetFolder, task.fileName)
-                                                playMedia(file.absolutePath, task.fileName, isSmb = false)
-                                            },
-                                            onPauseTask = { viewModel.pauseDownload(it) },
-                                            onResumeTask = { viewModel.resumeDownload(it) },
-                                            onDeleteTask = { id, delFile -> viewModel.deleteDownload(id, delFile) },
-                                            onPauseAll = { viewModel.pauseAll() },
-                                            onResumeAll = { viewModel.resumeAll() },
-                                            onOpenAddDialog = { showAddDialog = true },
-                                            onAddToPlaylist = { playlistId, title, uri ->
-                                                viewModel.addPlaylistItem(playlistId, title, uri)
-                                                android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
-                                            },
-                                            onCreatePlaylist = { name ->
-                                                viewModel.createPlaylist(name)
-                                            }
-                                        )
-                                    }
-                                    NavDestination.PLAYLISTS -> {
-                                        com.dwplayer.ui.screens.PlaylistsScreen(
-                                            playlists = playlists,
-                                            archiveFiles = archiveFiles,
-                                            onCreatePlaylist = { viewModel.createPlaylist(it) },
-                                            onDeletePlaylist = { viewModel.deletePlaylist(it) },
-                                            onDeletePlaylistItem = { viewModel.deletePlaylistItem(it) },
-                                            onAddPlaylistItem = { playlistId, title, uri ->
-                                                viewModel.addPlaylistItem(playlistId, title, uri)
-                                                android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
-                                            },
-                                            onPlayPlaylistItem = { playlistId, item ->
-                                                playPlaylistItem(playlistId, item)
-                                            },
-                                            onOpenAddDialog = { targetPlaylistId ->
-                                                addDialogInitialPlaylistId = targetPlaylistId
-                                                showAddDialog = true
-                                            }
-                                        )
-                                    }
-                                    NavDestination.ARCHIVE -> {
-                                        LaunchedEffect(Unit) {
-                                            viewModel.refreshArchiveFiles()
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                            ) {
+                                // Global Top Status Bar
+                                TopStatusBar(companionUrl = companionUrl)
+
+                                // Active Destination Screen
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                ) {
+                                    when (currentDestination) {
+                                        NavDestination.HOME -> {
+                                            HomeScreen(
+                                                historyList = historyList,
+                                                activeTasks = tasks.filter { it.status == "ACTIVE" || it.status == "PENDING" },
+                                                liveProgress = liveProgress,
+                                                smbShares = smbShares,
+                                                storageInfo = storageInfo,
+                                                companionUrl = companionUrl,
+                                                onPlayMedia = { uri, title, isSmb ->
+                                                    playMedia(uri, title, isSmb)
+                                                },
+                                                onNavigateDownloads = { currentDestination = NavDestination.DOWNLOADS },
+                                                onNavigateSmb = { currentDestination = NavDestination.SMB },
+                                                onNavigateArchive = { currentDestination = NavDestination.ARCHIVE },
+                                                onOpenAddDialog = { showAddDialog = true },
+                                                onClearHistory = { viewModel.clearPlaybackHistory() }
+                                            )
                                         }
-                                        MediaArchiveScreen(
-                                            files = archiveFiles,
-                                            storageInfo = storageInfo,
-                                            playlists = playlists,
-                                            onPlayFile = { file ->
-                                                playMedia(file.path, file.name, isSmb = false)
-                                            },
-                                            onDeleteFile = { file ->
-                                                viewModel.deleteArchiveFile(file)
-                                            },
-                                            onRefresh = {
+                                        NavDestination.DOWNLOADS -> {
+                                            DownloadsScreen(
+                                                tasks = tasks,
+                                                liveProgress = liveProgress,
+                                                playlists = playlists,
+                                                onPlayTask = { task ->
+                                                    val file = File(task.targetFolder, task.fileName)
+                                                    playMedia(file.absolutePath, task.fileName, isSmb = false)
+                                                },
+                                                onPauseTask = { viewModel.pauseDownload(it) },
+                                                onResumeTask = { viewModel.resumeDownload(it) },
+                                                onDeleteTask = { id, delFile -> viewModel.deleteDownload(id, delFile) },
+                                                onPauseAll = { viewModel.pauseAll() },
+                                                onResumeAll = { viewModel.resumeAll() },
+                                                onOpenAddDialog = { showAddDialog = true },
+                                                onAddToPlaylist = { playlistId, title, uri ->
+                                                    viewModel.addPlaylistItem(playlistId, title, uri)
+                                                    android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                onCreatePlaylist = { name ->
+                                                    viewModel.createPlaylist(name)
+                                                }
+                                            )
+                                        }
+                                        NavDestination.PLAYLISTS -> {
+                                            PlaylistsScreen(
+                                                playlists = playlists,
+                                                archiveFiles = archiveFiles,
+                                                onCreatePlaylist = { viewModel.createPlaylist(it) },
+                                                onDeletePlaylist = { viewModel.deletePlaylist(it) },
+                                                onRemoveItemFromPlaylist = { viewModel.deletePlaylistItem(it) },
+                                                onAddItemsToPlaylist = { playlistId, files ->
+                                                    files.forEach { file ->
+                                                        viewModel.addPlaylistItem(playlistId, file.name, file.path)
+                                                    }
+                                                    android.widget.Toast.makeText(this@MainActivity, "Added ${files.size} videos to Series", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                onPlayItem = { item, _ ->
+                                                    playPlaylistItem(item)
+                                                },
+                                                onPlayAll = { series ->
+                                                    if (series.items.isNotEmpty()) {
+                                                        playPlaylistItem(series.items.first())
+                                                    }
+                                                }
+                                            )
+                                        }
+                                        NavDestination.ARCHIVE -> {
+                                            LaunchedEffect(Unit) {
                                                 viewModel.refreshArchiveFiles()
-                                            },
-                                            onAddToPlaylist = { playlistId, title, uri ->
-                                                viewModel.addPlaylistItem(playlistId, title, uri)
-                                                android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
-                                            },
-                                            onCreatePlaylist = { name ->
-                                                viewModel.createPlaylist(name)
                                             }
-                                        )
-                                    }
-                                    NavDestination.SMB -> {
-                                        com.dwplayer.ui.screens.NetworkSharesScreen(
-                                            smbShares = smbShares,
-                                            currentSmbShare = currentSmbShare,
-                                            currentSmbPath = currentSmbPath,
-                                            smbItems = smbItems,
-                                            isSmbLoading = isSmbLoading,
-                                            onSelectSmbShare = { viewModel.selectSmbShare(it) },
-                                            onNavigateSmbPath = { viewModel.browseSmbPath(it) },
-                                            onBackSmbPath = { viewModel.navigateSmbUp() },
-                                            onPlaySmbFile = { share, path, title ->
-                                                playSmbMedia(share.id, path, title)
-                                            },
-                                            onDownloadSmbFile = { share, item ->
-                                                viewModel.downloadSmbFile(share, item)
-                                            },
-                                            onAddSmbShare = { name, host, shareName, user, pass, domain ->
-                                                viewModel.addSmbShare(name, host, shareName, user, pass, domain)
-                                            },
-                                            onDeleteSmbShare = { viewModel.deleteSmbShare(it) },
+                                            MediaArchiveScreen(
+                                                files = archiveFiles,
+                                                storageInfo = storageInfo,
+                                                playlists = playlists,
+                                                onPlayFile = { file ->
+                                                    playMedia(file.path, file.name, isSmb = false)
+                                                },
+                                                onDeleteFile = { file ->
+                                                    viewModel.deleteArchiveFile(file)
+                                                },
+                                                onRefresh = {
+                                                    viewModel.refreshArchiveFiles()
+                                                },
+                                                onAddToPlaylist = { playlistId, title, uri ->
+                                                    viewModel.addPlaylistItem(playlistId, title, uri)
+                                                    android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                onCreatePlaylist = { name ->
+                                                    viewModel.createPlaylist(name)
+                                                }
+                                            )
+                                        }
+                                        NavDestination.SMB -> {
+                                            NetworkSharesScreen(
+                                                smbShares = smbShares,
+                                                currentSmbShare = currentSmbShare,
+                                                currentSmbPath = currentSmbPath,
+                                                smbItems = smbItems,
+                                                isSmbLoading = isSmbLoading,
+                                                onSelectSmbShare = { viewModel.selectSmbShare(it) },
+                                                onNavigateSmbPath = { viewModel.browseSmbPath(it) },
+                                                onBackSmbPath = { viewModel.navigateSmbUp() },
+                                                onPlaySmbFile = { share, path, title ->
+                                                    playSmbMedia(share.id, path, title)
+                                                },
+                                                onDownloadSmbFile = { share, item ->
+                                                    viewModel.downloadSmbFile(share, item)
+                                                },
+                                                onAddSmbShare = { name, host, shareName, user, pass, domain ->
+                                                    viewModel.addSmbShare(name, host, shareName, user, pass, domain)
+                                                },
+                                                onDeleteSmbShare = { viewModel.deleteSmbShare(it) },
 
-                                            webDavServers = webDavServers,
-                                            currentWebDavServer = currentWebDavServer,
-                                            currentWebDavPath = currentWebDavPath,
-                                            webDavItems = webDavItems,
-                                            isWebDavLoading = isWebDavLoading,
-                                            webDavError = webDavError,
-                                            onSelectWebDavServer = { viewModel.selectWebDavServer(it) },
-                                            onNavigateWebDavPath = { viewModel.browseWebDavPath(it) },
-                                            onBackWebDavPath = { viewModel.navigateWebDavUp() },
-                                            onPlayWebDavFile = { server, item ->
-                                                playWebDavMedia(server, item)
-                                            },
-                                            onDownloadWebDavFile = { server, item ->
-                                                viewModel.enqueueDownload(item.fullUrl, item.name)
-                                                android.widget.Toast.makeText(this@MainActivity, "Added to Downloads: ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
-                                            },
-                                            onAddWebDavServer = { name, url, user, pass, cb ->
-                                                viewModel.addWebDavServer(name, url, user, pass, cb)
-                                            },
-                                            onDeleteWebDavServer = { viewModel.deleteWebDavServer(it) },
+                                                webDavServers = webDavServers,
+                                                currentWebDavServer = currentWebDavServer,
+                                                currentWebDavPath = currentWebDavPath,
+                                                webDavItems = webDavItems,
+                                                isWebDavLoading = isWebDavLoading,
+                                                webDavError = webDavError,
+                                                onSelectWebDavServer = { viewModel.selectWebDavServer(it) },
+                                                onNavigateWebDavPath = { viewModel.browseWebDavPath(it) },
+                                                onBackWebDavPath = { viewModel.navigateWebDavUp() },
+                                                onPlayWebDavFile = { server, item ->
+                                                    playWebDavMedia(server, item)
+                                                },
+                                                onDownloadWebDavFile = { server, item ->
+                                                    viewModel.enqueueDownload(item.fullUrl, item.name)
+                                                    android.widget.Toast.makeText(this@MainActivity, "Added to Downloads: ${item.name}", android.widget.Toast.LENGTH_SHORT).show()
+                                                },
+                                                onAddWebDavServer = { name, url, user, pass, cb ->
+                                                    viewModel.addWebDavServer(name, url, user, pass, cb)
+                                                },
+                                                onDeleteWebDavServer = { viewModel.deleteWebDavServer(it) },
 
-                                            discoveredServers = discoveredServers,
-                                            onAddDiscoveredServer = { viewModel.addDiscoveredServer(it) }
-                                        )
+                                                discoveredServers = discoveredServers,
+                                                onAddDiscoveredServer = { viewModel.addDiscoveredServer(it) }
+                                            )
+                                        }
+                                        NavDestination.SETTINGS -> {
+                                            SettingsScreen(
+                                                companionUrl = companionUrl,
+                                                storageInfo = storageInfo
+                                            )
+                                        }
+                                        NavDestination.ADD -> {}
                                     }
-                                    NavDestination.ADD -> {}
                                 }
                             }
                         }
@@ -263,7 +284,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun playPlaylistItem(playlistId: String, item: com.dwplayer.data.entities.PlaylistItemEntity) {
+    private fun playPlaylistItem(item: com.dwplayer.data.entities.PlaylistItemEntity) {
         val intent = Intent(this, PlayerActivity::class.java).apply {
             var finalUri = item.mediaUri
             if (!item.downloadTaskId.isNullOrBlank()) {
@@ -274,7 +295,7 @@ class MainActivity : ComponentActivity() {
             }
             putExtra("MEDIA_URI", finalUri)
             putExtra("MEDIA_TITLE", item.title)
-            putExtra("PLAYLIST_ID", playlistId)
+            putExtra("PLAYLIST_ID", item.playlistId)
             putExtra("PLAYLIST_ITEM_ID", item.id)
         }
         startActivity(intent)

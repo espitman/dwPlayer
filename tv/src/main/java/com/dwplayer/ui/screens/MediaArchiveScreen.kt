@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,14 +18,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
 import com.dwplayer.data.entities.PlaylistWithItems
 import com.dwplayer.data.models.LocalArchiveFile
@@ -34,9 +33,6 @@ import com.dwplayer.data.models.StorageInfo
 import com.dwplayer.ui.components.AddToPlaylistDialog
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -51,19 +47,29 @@ fun MediaArchiveScreen(
     onAddToPlaylist: ((playlistId: String, title: String, uri: String) -> Unit)? = null,
     onCreatePlaylist: ((String) -> Unit)? = null
 ) {
-    var selectedActionFile by remember { mutableStateOf<LocalArchiveFile?>(null) }
+    var selectedFile by remember { mutableStateOf<LocalArchiveFile?>(null) }
     var fileToDelete by remember { mutableStateOf<LocalArchiveFile?>(null) }
     var showAddToPlaylistFile by remember { mutableStateOf<LocalArchiveFile?>(null) }
 
-    val totalBytes = remember(files) {
-        files.sumOf { it.sizeBytes }
+    val activeFile = remember(files, selectedFile) {
+        if (selectedFile != null && files.any { it.path == selectedFile?.path }) {
+            files.first { it.path == selectedFile?.path }
+        } else if (files.isNotEmpty()) {
+            files.first()
+        } else null
+    }
+
+    LaunchedEffect(files) {
+        if (selectedFile == null && files.isNotEmpty()) {
+            selectedFile = files.first()
+        }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         // 1. Top Header
         Row(
@@ -71,18 +77,26 @@ fun MediaArchiveScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "VIDEO ARCHIVE",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
+                    text = "SAVED ON THIS TV",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.5.sp
                 )
                 Text(
-                    text = "Saved video files on TV storage • ${files.size} videos (${formatBytesTotal(totalBytes)})",
+                    text = "Library",
+                    color = Color.White,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp
+                )
+                Text(
+                    text = "Offline files, recent imports and everything ready to play.",
                     color = TextSecondary,
-                    fontSize = 12.sp
+                    fontSize = 13.sp
                 )
             }
 
@@ -93,123 +107,226 @@ fun MediaArchiveScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .background(CardDark.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CardDark)
                         .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Default.Storage, null, tint = AccentCyan, modifier = Modifier.size(16.dp))
-                        Text(
-                            text = "${storageInfo.freeSpace} Free",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                        )
-                        Text(
-                            text = "/ ${storageInfo.totalSpace}",
-                            color = TextTertiary,
-                            fontSize = 11.sp,
-                            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                        )
-                    }
+                    Text(
+                        text = "${storageInfo.freeSpace} Free",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
 
                 FocusableCard(
                     onClick = onRefresh,
                     containerColor = Color.White.copy(alpha = 0.08f),
-                    focusedContainerColor = AccentPrimary
+                    focusedContainerColor = Color.White.copy(alpha = 0.2f)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Text(
-                            text = "Refresh",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                        )
+                        Text("Refresh", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
-        // 2. Videos List
+        // 2. Main Content: Master-Detail Split
         if (files.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(SurfaceDark.copy(alpha = 0.6f))
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Movie,
-                        contentDescription = null,
-                        tint = TextTertiary,
-                        modifier = Modifier.size(56.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(76.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(Color.White.copy(alpha = 0.06f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Folder, null, tint = TextSecondary, modifier = Modifier.size(36.dp))
+                    }
                     Text(
-                        text = "No video files found in local storage",
+                        text = "No saved videos yet",
                         color = Color.White,
-                        fontSize = 15.sp,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Downloaded movie and video files saved to TV will appear here",
+                        text = "Download movies via URL or transfer files across your local network.",
                         color = TextSecondary,
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     )
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp, start = 2.dp, end = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                items(files, key = { it.path }) { file ->
-                    ArchiveFileCard(
-                        file = file,
-                        onClick = { onPlayFile(file) },
-                        onLongClick = { selectedActionFile = file }
-                    )
+                // Left Column: List of Files
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1.35f)
+                        .fillMaxHeight(),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(files, key = { it.path }) { file ->
+                        val isSelected = activeFile?.path == file.path
+                        ArchiveFileRow(
+                            file = file,
+                            isSelected = isSelected,
+                            onClick = { selectedFile = file },
+                            onDoubleClick = { onPlayFile(file) }
+                        )
+                    }
+                }
+
+                // Right Column: Detail / Info Panel
+                if (activeFile != null) {
+                    Box(
+                        modifier = Modifier
+                            .weight(0.75f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(SurfaceDark.copy(alpha = 0.8f))
+                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+                            .padding(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                // Large Preview Box
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(CardDark, Color(0xFF1E2822))
+                                            )
+                                        )
+                                        .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Movie,
+                                        contentDescription = null,
+                                        tint = AccentPrimary.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(10.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color.Black.copy(alpha = 0.7f))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = activeFile.extension.uppercase(Locale.getDefault()),
+                                            color = AccentPrimary,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Black,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = activeFile.name,
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                // Specs List
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    SpecRow("Size", activeFile.sizeFormatted)
+                                    SpecRow("Format", activeFile.extension.uppercase(Locale.getDefault()))
+                                    SpecRow("Location", "TV Storage")
+                                }
+                            }
+
+                            // Actions
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                FocusableCard(
+                                    onClick = { onPlayFile(activeFile) },
+                                    containerColor = AccentPrimary,
+                                    focusedContainerColor = AccentSecondary,
+                                    contentColor = Color(0xFF0D0F0E),
+                                    focusedContentColor = Color(0xFF0D0F0E),
+                                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.PlayArrow, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Play Movie Now", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FocusableCard(
+                                        onClick = { showAddToPlaylistFile = activeFile },
+                                        containerColor = Color.White.copy(alpha = 0.08f),
+                                        modifier = Modifier.weight(1f).height(38.dp)
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("+ Series", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    FocusableCard(
+                                        onClick = { fileToDelete = activeFile },
+                                        containerColor = AccentRose.copy(alpha = 0.15f),
+                                        focusedContainerColor = AccentRose,
+                                        modifier = Modifier.weight(1f).height(38.dp)
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("Delete", color = AccentRose, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    // 3. File Actions Dialog (Play Movie / Add to Playlist / Delete / Cancel)
-    selectedActionFile?.let { file ->
-        ArchiveFileActionDialog(
-            file = file,
-            onDismiss = { selectedActionFile = null },
-            onPlay = {
-                selectedActionFile = null
-                onPlayFile(file)
-            },
-            onAddToPlaylistPrompt = {
-                val target = file
-                selectedActionFile = null
-                showAddToPlaylistFile = target
-            },
-            onDeletePrompt = {
-                selectedActionFile = null
-                fileToDelete = file
-            }
-        )
-    }
-
-    // 4. Add to Playlist Dialog
+    // Add to Playlist Dialog
     showAddToPlaylistFile?.let { file ->
         AddToPlaylistDialog(
             videoTitle = file.name,
@@ -225,7 +342,7 @@ fun MediaArchiveScreen(
         )
     }
 
-    // 5. Delete Confirmation Dialog
+    // Delete Confirmation Dialog
     fileToDelete?.let { target ->
         DeleteArchiveConfirmDialog(
             file = target,
@@ -239,267 +356,100 @@ fun MediaArchiveScreen(
 }
 
 @Composable
-private fun ArchiveFileCard(
-    file: LocalArchiveFile,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit
-) {
-    val dateStr = remember(file.lastModified) {
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(file.lastModified))
+private fun SpecRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 0.5.dp,
+                color = Color.White.copy(alpha = 0.04f),
+                shape = RoundedCornerShape(0.dp)
+            )
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = TextSecondary, fontSize = 12.sp)
+        Text(value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
     }
+}
 
+@Composable
+private fun ArchiveFileRow(
+    file: LocalArchiveFile,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onDoubleClick: () -> Unit
+) {
     FocusableCard(
         onClick = onClick,
-        onLongClick = onLongClick,
-        containerColor = CardDark.copy(alpha = 0.55f),
-        focusedContainerColor = CardDark.copy(alpha = 0.95f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Left: Movie Icon + File Info
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.linearGradient(listOf(AccentPrimary.copy(alpha = 0.8f), Color(0xFF4F46E5)))
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Movie,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = file.name,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Ext Badge
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(AccentPrimary.copy(alpha = 0.15f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = file.extension.uppercase(Locale.getDefault()),
-                                color = AccentCyan,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                        }
-
-                        Text(
-                            text = file.sizeFormatted,
-                            color = TextSecondary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-
-                        Text(
-                            text = "•",
-                            color = TextTertiary,
-                            fontSize = 12.sp
-                        )
-
-                        Text(
-                            text = dateStr,
-                            color = TextTertiary,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
-
-            // Right: Play Pill & Hold hint
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Hold for options",
-                    color = TextTertiary,
-                    fontSize = 11.sp
-                )
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(AccentPrimary.copy(alpha = 0.12f))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, null, tint = AccentSecondary, modifier = Modifier.size(14.dp))
-                        Text("Play", color = AccentSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ArchiveFileActionDialog(
-    file: LocalArchiveFile,
-    onDismiss: () -> Unit,
-    onPlay: () -> Unit,
-    onAddToPlaylistPrompt: () -> Unit,
-    onDeletePrompt: () -> Unit
-) {
-    val headerFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        delay(100)
-        try {
-            headerFocusRequester.requestFocus()
-        } catch (e: Exception) {}
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .width(440.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(SurfaceDark)
-                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(22.dp))
-                .padding(24.dp)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Focusable Safe Info Header (Lands initial focus safely)
-                FocusableCard(
-                    onClick = {},
-                    containerColor = CardDark.copy(alpha = 0.6f),
-                    focusedContainerColor = CardDark,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(headerFocusRequester)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = file.name,
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                            maxLines = 2,
-                            textAlign = TextAlign.Center,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "Size: ${file.sizeFormatted} • Format: ${file.extension}",
-                            color = TextSecondary,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                DialogActionButton(
-                    icon = Icons.Default.PlayArrow,
-                    label = "Play Movie Now",
-                    color = AccentEmerald,
-                    onClick = onPlay
-                )
-
-                DialogActionButton(
-                    icon = Icons.Default.PlaylistAdd,
-                    label = "Add to Playlist / Series",
-                    color = AccentCyan,
-                    onClick = onAddToPlaylistPrompt
-                )
-
-                DialogActionButton(
-                    icon = Icons.Default.DeleteForever,
-                    label = "Delete from TV Storage",
-                    color = AccentRose,
-                    onClick = onDeletePrompt
-                )
-
-                FocusableCard(
-                    onClick = onDismiss,
-                    containerColor = Color.Transparent,
-                    modifier = Modifier.fillMaxWidth().height(40.dp)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Cancel", color = TextTertiary, fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DialogActionButton(
-    icon: ImageVector,
-    label: String,
-    color: Color,
-    onClick: () -> Unit
-) {
-    val openedAt = remember { System.currentTimeMillis() }
-    FocusableCard(
-        onClick = {
-            if (System.currentTimeMillis() - openedAt > 500L) {
-                onClick()
-            }
-        },
-        modifier = Modifier.fillMaxWidth().height(48.dp),
-        containerColor = Color.White.copy(alpha = 0.05f),
-        focusedContainerColor = color
+        onLongClick = onDoubleClick,
+        shape = RoundedCornerShape(16.dp),
+        containerColor = if (isSelected) AccentPrimary.copy(alpha = 0.15f) else CardDark.copy(alpha = 0.7f),
+        focusedContainerColor = CardDark,
+        modifier = Modifier.fillMaxWidth().height(80.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-            Text(
-                text = label,
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.06f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Movie, null, tint = AccentPrimary, modifier = Modifier.size(22.dp))
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = file.name,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = file.sizeFormatted,
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text("•", color = TextTertiary, fontSize = 10.sp)
+                        Text(
+                            text = file.extension.uppercase(Locale.getDefault()),
+                            color = AccentPrimary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text("Ready", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -510,50 +460,27 @@ private fun DeleteArchiveConfirmDialog(
     onDismiss: () -> Unit,
     onConfirmDelete: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Box(
             modifier = Modifier
                 .width(440.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(22.dp))
                 .background(SurfaceDark)
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
-                .padding(26.dp)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+                .padding(24.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(AccentRose.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.DeleteForever, null, tint = AccentRose, modifier = Modifier.size(24.dp))
-                    }
-
-                    Column {
-                        Text("Delete File from Storage?", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
-                        Text("This action permanently frees disk space", color = TextSecondary, fontSize = 12.sp)
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(CardDark.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                        .padding(14.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(file.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text("Size: ${file.sizeFormatted} • Location: TV Storage", color = TextTertiary, fontSize = 11.sp)
-                    }
-                }
-
                 Text(
-                    text = "Are you sure you want to permanently delete this file? You will not be able to recover it.",
+                    text = "Delete Video File?",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    text = "Permanently delete \"${file.name}\" (${file.sizeFormatted}) from TV storage?",
                     color = TextSecondary,
                     fontSize = 12.sp
                 )
@@ -563,47 +490,27 @@ private fun DeleteArchiveConfirmDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     FocusableCard(
-                        onClick = onConfirmDelete,
-                        containerColor = AccentRose,
-                        focusedContainerColor = Color(0xFFE11D48),
-                        modifier = Modifier.weight(1f).height(44.dp)
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = Color.White.copy(alpha = 0.08f)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Delete Permanently",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                            )
+                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     FocusableCard(
-                        onClick = onDismiss,
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.weight(1f).height(44.dp)
+                        onClick = onConfirmDelete,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = AccentRose.copy(alpha = 0.85f),
+                        focusedContainerColor = AccentRose
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Cancel",
-                                color = TextSecondary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                            )
+                            Text("Delete File", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
     }
-}
-
-private fun formatBytesTotal(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
-    val index = digitGroups.coerceIn(0, units.size - 1)
-    return String.format("%.1f %s", bytes / Math.pow(1024.0, index.toDouble()), units[index])
 }

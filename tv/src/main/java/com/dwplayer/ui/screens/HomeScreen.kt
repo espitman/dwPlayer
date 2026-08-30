@@ -11,20 +11,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.material3.Icon
 import androidx.tv.material3.Text
 import com.dwplayer.data.entities.DownloadTaskEntity
 import com.dwplayer.data.entities.PlaybackHistoryEntity
@@ -45,30 +45,40 @@ fun HomeScreen(
     onPlayMedia: (String, String, Boolean) -> Unit,
     onNavigateDownloads: () -> Unit,
     onNavigateSmb: () -> Unit,
+    onNavigateArchive: () -> Unit,
     onOpenAddDialog: () -> Unit,
     onClearHistory: () -> Unit = {}
 ) {
     var showClearHistoryConfirm by remember { mutableStateOf(false) }
+    val featuredItem = remember(historyList) { historyList.firstOrNull() }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 24.dp, bottom = 36.dp),
+            .padding(start = 20.dp, end = 36.dp, top = 4.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp)
     ) {
-        // 1. Hero Banner
+        // 1. Featured Cinematic Hero
         item {
-            HeroBanner(
+            FeaturedHero(
+                featured = featuredItem,
                 storageInfo = storageInfo,
-                companionUrl = companionUrl,
+                onPlay = {
+                    if (featuredItem != null) {
+                        onPlayMedia(featuredItem.mediaUri, featuredItem.title, featuredItem.isSmb)
+                    } else {
+                        onOpenAddDialog()
+                    }
+                },
                 onOpenAddDialog = onOpenAddDialog,
-                onNavigateSmb = onNavigateSmb
+                onNavigateArchive = onNavigateArchive
             )
         }
 
-        // 2. Active Downloads Carousel
+        // 2. Active Downloads Rail (if any)
         if (activeTasks.isNotEmpty()) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -80,10 +90,11 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text = "ACTIVE DOWNLOADS",
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 1.sp
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 1.2.sp
                             )
                             Box(
                                 modifier = Modifier
@@ -93,25 +104,24 @@ fun HomeScreen(
                             ) {
                                 Text(
                                     text = "${activeTasks.size}",
-                                    color = AccentSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
+                                    color = AccentPrimary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
                                 )
                             }
                         }
 
                         FocusableCard(
                             onClick = onNavigateDownloads,
-                            containerColor = Color.Transparent,
-                            focusedContainerColor = AccentPrimary.copy(alpha = 0.3f),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            containerColor = Color.Transparent
                         ) {
                             Text(
-                                text = "View All →",
-                                color = AccentSecondary,
+                                text = "View queue →",
+                                color = AccentPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                     }
@@ -130,125 +140,78 @@ fun HomeScreen(
             }
         }
 
-        // 3. Continue Watching / Recent History
-        if (historyList.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "CONTINUE WATCHING",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
-                        )
-
-                        FocusableCard(
-                            onClick = { showClearHistoryConfirm = true },
-                            containerColor = Color.Transparent,
-                            focusedContainerColor = Color(0xFFEF4444).copy(alpha = 0.25f)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = Color(0xFFF87171),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Text(
-                                    text = "Clear History",
-                                    color = Color(0xFFF87171),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(historyList, key = { it.mediaUri }) { item ->
-                            HomeHistoryCard(
-                                item = item,
-                                onClick = { onPlayMedia(item.mediaUri, item.title, item.isSmb) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. Network SMB Quick Access
+        // 3. Your Recent Media Rail
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "LOCAL NETWORK SHARES (SMB)",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
-                    )
-                    FocusableCard(
-                        onClick = onNavigateSmb,
-                        containerColor = Color.Transparent,
-                        focusedContainerColor = AccentPrimary.copy(alpha = 0.3f)
-                    ) {
+                    Column {
                         Text(
-                            text = "Browse All →",
-                            color = AccentSecondary,
-                            fontSize = 12.sp,
+                            text = "YOUR RECENT MEDIA",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 1.2.sp
                         )
+                        Text(
+                            text = if (historyList.isNotEmpty()) "${historyList.size} items ready to resume" else "Saved files and stream shortcuts",
+                            color = TextTertiary,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    if (historyList.isNotEmpty()) {
+                        FocusableCard(
+                            onClick = { showClearHistoryConfirm = true },
+                            containerColor = Color.Transparent,
+                            focusedContainerColor = AccentRose.copy(alpha = 0.25f)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(Icons.Default.DeleteSweep, null, tint = AccentRose, modifier = Modifier.size(14.dp))
+                                Text("Clear History", color = AccentRose, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
 
-                if (smbShares.isEmpty()) {
-                    FocusableCard(
-                        onClick = onNavigateSmb,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(90.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 24.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(AccentPrimary.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Add, "Add SMB", tint = AccentSecondary, modifier = Modifier.size(24.dp))
-                            }
-                            Column {
-                                Text("Connect PC, Mac or NAS via SMB", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                Text("Stream movies across local home Wi-Fi directly without downloading", color = TextSecondary, fontSize = 12.sp)
-                            }
-                        }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // History Items
+                    items(historyList, key = { it.mediaUri }) { item ->
+                        HomeMediaCard(
+                            title = item.title,
+                            subtitle = if (item.isSmb) "Network Share" else "TV Storage",
+                            progress = if (item.durationMs > 0) (item.lastPositionMs.toFloat() / item.durationMs.toFloat()).coerceIn(0f, 1f) else 0f,
+                            timeRemaining = formatTime(item.lastPositionMs),
+                            onClick = { onPlayMedia(item.mediaUri, item.title, item.isSmb) }
+                        )
                     }
-                } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(smbShares, key = { it.id }) { share ->
-                            HomeSmbCard(share = share, onClick = onNavigateSmb)
-                        }
+
+                    // Network Quick Card
+                    item {
+                        HomeActionCard(
+                            title = "Network Files",
+                            subtitle = if (smbShares.isNotEmpty()) "${smbShares.size} shares connected" else "Browse local servers",
+                            icon = Icons.Default.CloudQueue,
+                            onClick = onNavigateSmb
+                        )
+                    }
+
+                    // Open Stream Card
+                    item {
+                        HomeActionCard(
+                            title = "Open a Stream",
+                            subtitle = "Paste direct media URL",
+                            icon = Icons.Default.AddLink,
+                            onClick = onOpenAddDialog
+                        )
                     }
                 }
             }
@@ -267,27 +230,33 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HeroBanner(
+private fun FeaturedHero(
+    featured: PlaybackHistoryEntity?,
     storageInfo: StorageInfo,
-    companionUrl: String,
+    onPlay: () -> Unit,
     onOpenAddDialog: () -> Unit,
-    onNavigateSmb: () -> Unit
+    onNavigateArchive: () -> Unit
 ) {
+    val progressPercent = if (featured != null && featured.durationMs > 0) {
+        ((featured.lastPositionMs.toFloat() / featured.durationMs.toFloat()) * 100).toInt().coerceIn(1, 99)
+    } else null
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .height(230.dp)
+            .clip(RoundedCornerShape(26.dp))
             .background(
                 Brush.horizontalGradient(
                     listOf(
-                        Color(0xFF1E3A8A).copy(alpha = 0.8f),
-                        Color(0xFF1E1B4B).copy(alpha = 0.9f)
+                        SurfaceDark,
+                        CardDark.copy(alpha = 0.85f),
+                        Color(0xFF1E2922).copy(alpha = 0.5f)
                     )
                 )
             )
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
-            .padding(24.dp)
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(26.dp))
+            .padding(28.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -295,71 +264,249 @@ private fun HeroBanner(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
-                modifier = Modifier.weight(1.2f),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.weight(1.3f),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "dwPlayer Cinema Hub",
+                        text = if (featured != null) "CONTINUE WATCHING" else "CINEMA HUB",
+                        color = AccentPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.5.sp
+                    )
+
+                    Text(
+                        text = featured?.title ?: "dwPlayer Android TV",
                         color = Color.White,
-                        fontSize = 24.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = 0.5.sp
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = "Download movies via URL or stream directly from your local network PC/NAS.",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp,
-                        maxLines = 2
-                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (progressPercent != null) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(AccentPrimary.copy(alpha = 0.15f))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "$progressPercent% watched",
+                                    color = AccentPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = if (featured?.isSmb == true) "Source: Local Network SMB" else "Offline TV Storage",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FocusableCard(
-                        onClick = onOpenAddDialog,
+                        onClick = onPlay,
                         containerColor = AccentPrimary,
-                        focusedContainerColor = AccentSecondary
+                        focusedContainerColor = AccentSecondary,
+                        contentColor = Color(0xFF0D0F0E),
+                        focusedContentColor = Color(0xFF0D0F0E)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.AddLink, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add Download Link", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.PlayArrow, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
+                            Text(
+                                text = if (progressPercent != null) "Resume $progressPercent%" else "Play Media",
+                                color = Color(0xFF0D0F0E),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Black
+                            )
                         }
                     }
 
                     FocusableCard(
-                        onClick = onNavigateSmb,
-                        containerColor = Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = Color.White.copy(alpha = 0.25f)
+                        onClick = onNavigateArchive,
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        focusedContainerColor = Color.White.copy(alpha = 0.2f)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(Icons.Default.CloudQueue, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Browse Network", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.Folder, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Text("Library", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
 
-            // Storage & Web Remote Widget
+            // Right Info Pill
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                    .padding(14.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+                    .padding(18.dp)
             ) {
-                Text("TV Web Remote", color = AccentSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text(companionUrl, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Text("Free Space: ${storageInfo.freeSpace} / ${storageInfo.totalSpace}", color = TextSecondary, fontSize = 10.sp)
+                Text(
+                    text = "STORAGE CAPACITY",
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${storageInfo.freeSpace} Free",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = "Total Space: ${storageInfo.totalSpace}",
+                    color = TextTertiary,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeMediaCard(
+    title: String,
+    subtitle: String,
+    progress: Float,
+    timeRemaining: String,
+    onClick: () -> Unit
+) {
+    FocusableCard(
+        onClick = onClick,
+        modifier = Modifier
+            .width(240.dp)
+            .height(130.dp),
+        shape = RoundedCornerShape(18.dp),
+        containerColor = CardDark.copy(alpha = 0.7f),
+        focusedContainerColor = CardDark
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Default.PlayCircleOutline,
+                    contentDescription = null,
+                    tint = AccentPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .background(AccentPrimary)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Resume", color = TextTertiary, fontSize = 10.sp)
+                    Text(timeRemaining, color = TextTertiary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeActionCard(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    FocusableCard(
+        onClick = onClick,
+        modifier = Modifier
+            .width(200.dp)
+            .height(130.dp),
+        shape = RoundedCornerShape(18.dp),
+        containerColor = CardDark.copy(alpha = 0.4f),
+        focusedContainerColor = CardDark
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.06f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = AccentPrimary, modifier = Modifier.size(18.dp))
+            }
+
+            Column {
+                Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(subtitle, color = TextSecondary, fontSize = 11.sp)
             }
         }
     }
@@ -376,7 +523,10 @@ private fun HomeDownloadCard(
         onClick = onClick,
         modifier = Modifier
             .width(260.dp)
-            .height(110.dp)
+            .height(110.dp),
+        shape = RoundedCornerShape(18.dp),
+        containerColor = CardDark.copy(alpha = 0.7f),
+        focusedContainerColor = CardDark
     ) {
         Column(
             modifier = Modifier
@@ -399,17 +549,17 @@ private fun HomeDownloadCard(
                 )
                 Text(
                     text = "$progress%",
-                    color = AccentSecondary,
+                    color = AccentPrimary,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Black
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
                 )
             }
 
-            // Progress bar
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
+                    .height(4.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.1f))
             ) {
@@ -428,105 +578,17 @@ private fun HomeDownloadCard(
             ) {
                 Text(
                     text = live?.speed.takeIf { !it.isNullOrBlank() } ?: task.status,
-                    color = AccentAmber,
+                    color = TextSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = live?.timeRemaining.takeIf { !it.isNullOrBlank() } ?: "",
-                    color = TextSecondary,
-                    fontSize = 11.sp
+                    color = TextTertiary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun HomeHistoryCard(
-    item: PlaybackHistoryEntity,
-    onClick: () -> Unit
-) {
-    val progress = if (item.durationMs > 0) (item.lastPositionMs.toFloat() / item.durationMs.toFloat()).coerceIn(0f, 1f) else 0f
-
-    FocusableCard(
-        onClick = onClick,
-        modifier = Modifier
-            .width(220.dp)
-            .height(120.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(
-                    imageVector = if (item.isSmb) Icons.Default.FolderShared else Icons.Default.Movie,
-                    contentDescription = null,
-                    tint = AccentSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = item.title,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2
-                )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.1f))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progress)
-                            .fillMaxHeight()
-                            .clip(CircleShape)
-                            .background(AccentSecondary)
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Resume", color = TextSecondary, fontSize = 10.sp)
-                    Text(formatTime(item.lastPositionMs), color = TextSecondary, fontSize = 10.sp)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeSmbCard(
-    share: SmbShareEntity,
-    onClick: () -> Unit
-) {
-    FocusableCard(
-        onClick = onClick,
-        modifier = Modifier
-            .width(200.dp)
-            .height(100.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.FolderShared, null, tint = AccentAmber, modifier = Modifier.size(20.dp))
-                Text(share.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            }
-            Text("smb://${share.host}/${share.shareName}", color = TextSecondary, fontSize = 10.sp, maxLines = 1)
         }
     }
 }
@@ -547,78 +609,50 @@ private fun ClearHistoryConfirmDialog(
         Box(
             modifier = Modifier
                 .width(420.dp)
-                .background(SurfaceDark, RoundedCornerShape(20.dp))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .background(SurfaceDark, RoundedCornerShape(22.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
                 .padding(24.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(AccentRose.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.DeleteSweep, null, tint = AccentRose, modifier = Modifier.size(26.dp))
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Clear Watch History?",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "This will remove all resume progress and clear the Continue Watching section.",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
-                }
+                Text(
+                    text = "Clear Watch History?",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "This will remove all resume progress and clear the Continue Watching section.",
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     FocusableCard(
-                        onClick = onConfirmClear,
-                        containerColor = AccentRose,
-                        focusedContainerColor = Color(0xFFE11D48),
-                        modifier = Modifier.weight(1f).height(44.dp)
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = Color.White.copy(alpha = 0.08f)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Clear History",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                            )
+                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     FocusableCard(
-                        onClick = onDismiss,
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.weight(1f).height(44.dp)
+                        onClick = onConfirmClear,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        containerColor = AccentRose.copy(alpha = 0.85f),
+                        focusedContainerColor = AccentRose
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Cancel",
-                                color = TextSecondary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-                            )
+                            Text("Clear History", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
