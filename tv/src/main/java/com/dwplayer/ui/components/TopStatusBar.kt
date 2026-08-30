@@ -9,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,7 +39,8 @@ fun TopStatusBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 32.dp, end = 48.dp, top = 28.dp, bottom = 12.dp),
+            .height(68.dp)
+            .padding(start = 36.dp, end = 42.dp, top = 18.dp, bottom = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -52,8 +52,9 @@ fun TopStatusBar(
             Text(
                 text = "dwPlayer",
                 color = Color.White,
-                fontSize = 24.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
+                fontFamily = DwDisplayFont,
                 letterSpacing = (-0.8).sp
             )
             Text(
@@ -61,7 +62,7 @@ fun TopStatusBar(
                 color = Color(0xFF7A857E),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = DwMonoFont,
                 letterSpacing = 1.sp
             )
         }
@@ -69,7 +70,7 @@ fun TopStatusBar(
         // Right: Remote Status & Clock (● Web remote connected 20:07)
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -77,7 +78,7 @@ fun TopStatusBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
+                        .size(7.dp)
                         .clip(CircleShape)
                         .background(if (isConnected) Color.White else Color(0xFF5A635E))
                 )
@@ -85,6 +86,7 @@ fun TopStatusBar(
                     text = if (isConnected) "Web remote connected" else "Web remote offline",
                     color = Color(0xFFA8B2AB),
                     fontSize = 13.sp,
+                    fontFamily = DwBodyFont,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -94,7 +96,7 @@ fun TopStatusBar(
                 color = Color.White,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                fontFamily = FontFamily.Monospace
+                fontFamily = DwMonoFont
             )
         }
     }

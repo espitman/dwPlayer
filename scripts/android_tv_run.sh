@@ -4,7 +4,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DASHBOARD_DIR="$PROJECT_ROOT/dashboard"
-APK_PATH="$PROJECT_ROOT/app/build/outputs/apk/debug/app-debug.apk"
+APK_PATH="$PROJECT_ROOT/tv/build/outputs/apk/debug/tv-debug.apk"
 APP_ID="com.dwplayer"
 MAIN_ACTIVITY="com.dwplayer.MainActivity"
 APP_PORT="8200"
@@ -114,7 +114,7 @@ fi
 
 echo "Building Android TV debug APK..."
 cd "$PROJECT_ROOT"
-./gradlew --no-daemon assembleDebug
+./gradlew --no-daemon :tv:assembleDebug
 
 if [ ! -f "$APK_PATH" ]; then
   echo "Error: debug APK not found at $APK_PATH"

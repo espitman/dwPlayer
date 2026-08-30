@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.zIndex
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -30,6 +30,7 @@ import com.dwplayer.ui.components.TvSidebar
 import com.dwplayer.ui.player.PlayerActivity
 import com.dwplayer.ui.screens.*
 import com.dwplayer.ui.theme.DwPlayerTheme
+import com.dwplayer.ui.theme.BgDark
 import com.dwplayer.ui.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
@@ -89,7 +90,7 @@ class MainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF090C0A))
+                            .background(BgDark)
                     ) {
                         // Main Navigation Layout (Left Icon Rail + Content)
                         Row(modifier = Modifier.fillMaxSize()) {
@@ -106,13 +107,17 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxHeight()
                             ) {
                                 // Global Top Status Bar
-                                TopStatusBar(companionUrl = companionUrl)
+                                TopStatusBar(
+                                    companionUrl = companionUrl,
+                                    modifier = Modifier.zIndex(2f)
+                                )
 
                                 // Active Destination Screen
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .weight(1f)
+                                        .zIndex(1f)
                                 ) {
                                     when (currentDestination) {
                                         NavDestination.HOME -> {

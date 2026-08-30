@@ -1,31 +1,31 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
+
 package com.dwplayer.ui.screens
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AddLink
+import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
+import com.dwplayer.R
 import com.dwplayer.data.entities.DownloadTaskEntity
 import com.dwplayer.data.entities.PlaybackHistoryEntity
 import com.dwplayer.data.entities.SmbShareEntity
@@ -33,6 +33,7 @@ import com.dwplayer.data.models.DownloadProgressInfo
 import com.dwplayer.data.models.StorageInfo
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -49,342 +50,274 @@ fun HomeScreen(
     onOpenAddDialog: () -> Unit,
     onClearHistory: () -> Unit = {}
 ) {
-    var showClearHistoryConfirm by remember { mutableStateOf(false) }
-    val featuredItem = remember(historyList) { historyList.firstOrNull() }
+    val featured = historyList.firstOrNull()
+    val progress = featured?.progressFraction() ?: 0f
+    val progressPercent = (progress * 100).toInt().coerceIn(0, 99)
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(start = 20.dp, end = 36.dp, top = 4.dp, bottom = 36.dp),
-        verticalArrangement = Arrangement.spacedBy(28.dp)
-    ) {
-        // 1. Featured Cinematic Hero
-        item {
-            FeaturedHero(
-                featured = featuredItem,
-                storageInfo = storageInfo,
-                onPlay = {
-                    if (featuredItem != null) {
-                        onPlayMedia(featuredItem.mediaUri, featuredItem.title, featuredItem.isSmb)
-                    } else {
-                        onOpenAddDialog()
-                    }
-                },
-                onOpenAddDialog = onOpenAddDialog,
-                onNavigateArchive = onNavigateArchive
-            )
-        }
-
-        // 2. Active Downloads Rail (if any)
-        if (activeTasks.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "ACTIVE DOWNLOADS",
-                                color = TextSecondary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 1.2.sp
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(AccentPrimary.copy(alpha = 0.2f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "${activeTasks.size}",
-                                    color = AccentPrimary,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
-
-                        FocusableCard(
-                            onClick = onNavigateDownloads,
-                            containerColor = Color.Transparent
-                        ) {
-                            Text(
-                                text = "View queue →",
-                                color = AccentPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(activeTasks, key = { it.id }) { task ->
-                            val live = liveProgress[task.id]
-                            HomeDownloadCard(
-                                task = task,
-                                live = live,
-                                onClick = onNavigateDownloads
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. Your Recent Media Rail
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "YOUR RECENT MEDIA",
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.2.sp
-                        )
-                        Text(
-                            text = if (historyList.isNotEmpty()) "${historyList.size} items ready to resume" else "Saved files and stream shortcuts",
-                            color = TextTertiary,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    if (historyList.isNotEmpty()) {
-                        FocusableCard(
-                            onClick = { showClearHistoryConfirm = true },
-                            containerColor = Color.Transparent,
-                            focusedContainerColor = AccentRose.copy(alpha = 0.25f)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Icon(Icons.Default.DeleteSweep, null, tint = AccentRose, modifier = Modifier.size(14.dp))
-                                Text("Clear History", color = AccentRose, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // History Items
-                    items(historyList, key = { it.mediaUri }) { item ->
-                        HomeMediaCard(
-                            title = item.title,
-                            subtitle = if (item.isSmb) "Network Share" else "TV Storage",
-                            progress = if (item.durationMs > 0) (item.lastPositionMs.toFloat() / item.durationMs.toFloat()).coerceIn(0f, 1f) else 0f,
-                            timeRemaining = formatTime(item.lastPositionMs),
-                            onClick = { onPlayMedia(item.mediaUri, item.title, item.isSmb) }
-                        )
-                    }
-
-                    // Network Quick Card
-                    item {
-                        HomeActionCard(
-                            title = "Network Files",
-                            subtitle = if (smbShares.isNotEmpty()) "${smbShares.size} shares connected" else "Browse local servers",
-                            icon = Icons.Default.CloudQueue,
-                            onClick = onNavigateSmb
-                        )
-                    }
-
-                    // Open Stream Card
-                    item {
-                        HomeActionCard(
-                            title = "Open a Stream",
-                            subtitle = "Paste direct media URL",
-                            icon = Icons.Default.AddLink,
-                            onClick = onOpenAddDialog
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showClearHistoryConfirm) {
-        ClearHistoryConfirmDialog(
-            onDismiss = { showClearHistoryConfirm = false },
-            onConfirmClear = {
-                showClearHistoryConfirm = false
-                onClearHistory()
-            }
-        )
-    }
-}
-
-@Composable
-private fun FeaturedHero(
-    featured: PlaybackHistoryEntity?,
-    storageInfo: StorageInfo,
-    onPlay: () -> Unit,
-    onOpenAddDialog: () -> Unit,
-    onNavigateArchive: () -> Unit
-) {
-    val progressPercent = if (featured != null && featured.durationMs > 0) {
-        ((featured.lastPositionMs.toFloat() / featured.durationMs.toFloat()) * 100).toInt().coerceIn(1, 99)
-    } else null
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(230.dp)
-            .clip(RoundedCornerShape(26.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        SurfaceDark,
-                        CardDark.copy(alpha = 0.85f),
-                        Color(0xFF1E2922).copy(alpha = 0.5f)
-                    )
-                )
-            )
-            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(26.dp))
-            .padding(28.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    BoxWithConstraints(Modifier.fillMaxSize().background(BgDark)) {
+        val fullCanvasHeight = maxHeight + 68.dp
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .requiredHeight(fullCanvasHeight)
+                .offset(y = (-68).dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1.3f),
-                verticalArrangement = Arrangement.SpaceBetween
+            CinematicHero(
+                featured = featured,
+                progressPercent = progressPercent,
+                modifier = Modifier.fillMaxWidth().height(fullCanvasHeight * 0.64f),
+                onResume = {
+                    if (featured != null) onPlayMedia(featured.mediaUri, featured.title, featured.isSmb)
+                    else onOpenAddDialog()
+                },
+                onDetails = onNavigateArchive
+            )
+
+            RecentMediaRail(
+                historyList = historyList,
+                activeTasks = activeTasks,
+                liveProgress = liveProgress,
+                smbShares = smbShares,
+                storageInfo = storageInfo,
+                isRemoteConnected = companionUrl.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 42.dp)
+                    .offset(y = fullCanvasHeight * 0.62f),
+                onPlayMedia = onPlayMedia,
+                onNavigateDownloads = onNavigateDownloads,
+                onNavigateSmb = onNavigateSmb,
+                onOpenAddDialog = onOpenAddDialog
+            )
+        }
+    }
+}
+
+@Composable
+private fun CinematicHero(
+    featured: PlaybackHistoryEntity?,
+    progressPercent: Int,
+    modifier: Modifier,
+    onResume: () -> Unit,
+    onDetails: () -> Unit
+) {
+    val title = featured?.title?.cinematicTitle() ?: "Your cinema, ready"
+    val duration = featured?.durationMs?.takeIf { it > 0 }?.asCompactDuration() ?: "Ready to play"
+    val extension = featured?.title?.substringAfterLast('.', "VIDEO")?.uppercase(Locale.US) ?: "VIDEO"
+    val source = if (featured?.isSmb == true) "NETWORK" else "TV ARCHIVE"
+
+    Box(modifier) {
+        Image(
+            painter = painterResource(R.drawable.cinematic_coast_hero),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(
+                    0f to BgDark,
+                    0.30f to BgDark.copy(alpha = 0.94f),
+                    0.70f to BgDark.copy(alpha = 0.18f),
+                    1f to BgDark.copy(alpha = 0.88f)
+                )
+            )
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.50f to Color.Transparent,
+                    1f to BgDark
+                )
+            )
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 42.dp, top = 100.dp)
+                .widthIn(max = 430.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (featured == null) "DWPLAYER TV" else "CONTINUE WATCHING",
+                color = TextPrimary.copy(alpha = 0.76f),
+                fontFamily = DwMonoFont,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.4.sp
+            )
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontFamily = DwDisplayFont,
+                fontSize = 50.sp,
+                lineHeight = 50.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-2.2).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = if (featured != null) "CONTINUE WATCHING" else "CINEMA HUB",
-                        color = AccentPrimary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 1.5.sp
-                    )
-
-                    Text(
-                        text = featured?.title ?: "dwPlayer Android TV",
-                        color = Color.White,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
+                HeroMeta(duration)
+                HeroMeta(source)
+                HeroMeta(extension)
+            }
+            Text(
+                text = if (featured == null) {
+                    "Open a stream or browse your library to start watching on the biggest screen in the house."
+                } else {
+                    "A saved film from your TV archive. Pick up exactly where you stopped, even when the network is offline."
+                },
+                color = TextPrimary.copy(alpha = 0.78f),
+                fontFamily = DwBodyFont,
+                fontSize = 15.sp,
+                lineHeight = 23.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FocusableCard(
+                    onClick = onResume,
+                    modifier = Modifier.height(52.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    containerColor = AccentPrimary,
+                    focusedContainerColor = AccentSecondary,
+                    contentColor = BgDark,
+                    focusedContentColor = BgDark,
+                    focusedBorderColor = TextPrimary,
+                    scale = 1.025f
+                ) {
                     Row(
+                        Modifier.fillMaxHeight().padding(horizontal = 21.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
-                        if (progressPercent != null) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(AccentPrimary.copy(alpha = 0.15f))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = "$progressPercent% watched",
-                                    color = AccentPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
-
+                        Icon(Icons.Default.PlayArrow, null, tint = BgDark, modifier = Modifier.size(21.dp))
                         Text(
-                            text = if (featured?.isSmb == true) "Source: Local Network SMB" else "Offline TV Storage",
-                            color = TextSecondary,
-                            fontSize = 12.sp
+                            if (featured != null && progressPercent > 0) "Resume $progressPercent%" else "Play media",
+                            color = BgDark,
+                            fontFamily = DwBodyFont,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FocusableCard(
-                        onClick = onPlay,
-                        containerColor = AccentPrimary,
-                        focusedContainerColor = AccentSecondary,
-                        contentColor = Color(0xFF0D0F0E),
-                        focusedContentColor = Color(0xFF0D0F0E)
+                FocusableCard(
+                    onClick = onDetails,
+                    modifier = Modifier.height(52.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    containerColor = TextPrimary.copy(alpha = 0.10f),
+                    focusedContainerColor = TextPrimary.copy(alpha = 0.20f),
+                    borderColor = TextPrimary.copy(alpha = 0.22f),
+                    scale = 1.025f
+                ) {
+                    Row(
+                        Modifier.fillMaxHeight().padding(horizontal = 19.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.PlayArrow, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
-                            Text(
-                                text = if (progressPercent != null) "Resume $progressPercent%" else "Play Media",
-                                color = Color(0xFF0D0F0E),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                        }
-                    }
-
-                    FocusableCard(
-                        onClick = onNavigateArchive,
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        focusedContainerColor = Color.White.copy(alpha = 0.2f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(Icons.Default.Folder, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Text("Library", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
+                        Icon(Icons.Default.Info, null, tint = TextPrimary, modifier = Modifier.size(19.dp))
+                        Text("Details", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
+        }
+    }
+}
 
-            // Right Info Pill
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.Black.copy(alpha = 0.4f))
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
-                    .padding(18.dp)
-            ) {
-                Text(
-                    text = "STORAGE CAPACITY",
-                    color = TextSecondary,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
+@Composable
+private fun HeroMeta(text: String) = Text(
+    text = text,
+    color = TextPrimary.copy(alpha = 0.82f),
+    fontFamily = DwMonoFont,
+    fontSize = 11.sp
+)
+
+@Composable
+private fun RecentMediaRail(
+    historyList: List<PlaybackHistoryEntity>,
+    activeTasks: List<DownloadTaskEntity>,
+    liveProgress: Map<String, DownloadProgressInfo>,
+    smbShares: List<SmbShareEntity>,
+    storageInfo: StorageInfo,
+    isRemoteConnected: Boolean,
+    modifier: Modifier,
+    onPlayMedia: (String, String, Boolean) -> Unit,
+    onNavigateDownloads: () -> Unit,
+    onNavigateSmb: () -> Unit,
+    onOpenAddDialog: () -> Unit
+) {
+    val recent = historyList.take(2)
+    val activeTask = activeTasks.firstOrNull()
+    val sourceCount = historyList.size + smbShares.size
+
+    Column(modifier) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Text(
+                "Your recent media",
+                color = TextPrimary,
+                fontFamily = DwDisplayFont,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp
+            )
+            Text(
+                text = when {
+                    activeTask != null -> "${activeTasks.size} active download${if (activeTasks.size == 1) "" else "s"}"
+                    sourceCount > 0 -> "$sourceCount item${if (sourceCount == 1) "" else "s"} across TV and network"
+                    isRemoteConnected -> "Web remote connected · ${storageInfo.freeSpace} free"
+                    else -> "TV archive and network sources"
+                },
+                color = TextSecondary,
+                fontFamily = DwBodyFont,
+                fontSize = 11.sp
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            recent.forEachIndexed { index, item ->
+                CinematicMediaCard(
+                    title = item.title.cinematicTitle(),
+                    subtitle = item.recentSubtitle(),
+                    imageRes = fallbackImages[index % fallbackImages.size],
+                    progress = item.progressFraction(),
+                    modifier = Modifier.weight(if (index == 0) 1.25f else 1f),
+                    onClick = { onPlayMedia(item.mediaUri, item.title, item.isSmb) }
                 )
-                Text(
-                    text = "${storageInfo.freeSpace} Free",
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace
+            }
+            if (activeTask != null && recent.size < 2) {
+                val downloadProgress = liveProgress[activeTask.id]?.progress ?: activeTask.progress
+                AbstractMediaCard(
+                    activeTask.fileName.cinematicTitle(),
+                    "$downloadProgress% · Download queue",
+                    Icons.Default.PlayArrow,
+                    Modifier.weight(1f),
+                    onNavigateDownloads
                 )
-                Text(
-                    text = "Total Space: ${storageInfo.totalSpace}",
-                    color = TextTertiary,
-                    fontSize = 11.sp
+            }
+            AbstractMediaCard(
+                if (smbShares.isEmpty()) "Phone files" else "Network files",
+                if (smbShares.isEmpty()) "Browse available devices" else "${smbShares.size} sources connected",
+                Icons.Default.CloudQueue,
+                Modifier.weight(1f),
+                onNavigateSmb
+            )
+            if (recent.size + (if (activeTask != null && recent.size < 2) 1 else 0) < 2) {
+                AbstractMediaCard(
+                    "Open a stream",
+                    "Paste a direct URL",
+                    Icons.Default.AddLink,
+                    Modifier.weight(1f),
+                    onOpenAddDialog
                 )
             }
         }
@@ -392,271 +325,134 @@ private fun FeaturedHero(
 }
 
 @Composable
-private fun HomeMediaCard(
+private fun CinematicMediaCard(
     title: String,
     subtitle: String,
+    @DrawableRes imageRes: Int,
     progress: Float,
-    timeRemaining: String,
+    modifier: Modifier,
     onClick: () -> Unit
 ) {
     FocusableCard(
         onClick = onClick,
-        modifier = Modifier
-            .width(240.dp)
-            .height(130.dp),
+        modifier = modifier.height(165.dp),
         shape = RoundedCornerShape(18.dp),
-        containerColor = CardDark.copy(alpha = 0.7f),
-        focusedContainerColor = CardDark
+        containerColor = SurfaceDark,
+        focusedContainerColor = SurfaceDark,
+        borderColor = TextPrimary.copy(alpha = 0.11f),
+        scale = 1.035f
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+        Box(Modifier.fillMaxSize()) {
+            Image(painterResource(imageRes), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.56f to BgDark.copy(alpha = 0.12f),
+                        1f to BgDark.copy(alpha = 0.96f)
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subtitle,
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.Default.PlayCircleOutline,
-                    contentDescription = null,
-                    tint = AccentPrimary,
-                    modifier = Modifier.size(20.dp)
                 )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.12f))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progress)
-                            .fillMaxHeight()
-                            .clip(CircleShape)
-                            .background(AccentPrimary)
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Resume", color = TextTertiary, fontSize = 10.sp)
-                    Text(timeRemaining, color = TextTertiary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                }
-            }
+            )
+            MediaCardCopy(title, subtitle, progress, Modifier.align(Alignment.BottomStart))
         }
     }
 }
 
 @Composable
-private fun HomeActionCard(
+private fun AbstractMediaCard(
     title: String,
     subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier,
     onClick: () -> Unit
 ) {
     FocusableCard(
         onClick = onClick,
-        modifier = Modifier
-            .width(200.dp)
-            .height(130.dp),
+        modifier = modifier.height(165.dp),
         shape = RoundedCornerShape(18.dp),
-        containerColor = CardDark.copy(alpha = 0.4f),
-        focusedContainerColor = CardDark
+        containerColor = SurfaceDark,
+        focusedContainerColor = CardDark,
+        borderColor = TextPrimary.copy(alpha = 0.11f),
+        scale = 1.035f
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.06f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = AccentPrimary, modifier = Modifier.size(18.dp))
-            }
-
-            Column {
-                Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text(subtitle, color = TextSecondary, fontSize = 11.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeDownloadCard(
-    task: DownloadTaskEntity,
-    live: DownloadProgressInfo?,
-    onClick: () -> Unit
-) {
-    val progress = live?.progress ?: task.progress
-    FocusableCard(
-        onClick = onClick,
-        modifier = Modifier
-            .width(260.dp)
-            .height(110.dp),
-        shape = RoundedCornerShape(18.dp),
-        containerColor = CardDark.copy(alpha = 0.7f),
-        focusedContainerColor = CardDark
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = task.fileName,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "$progress%",
-                    color = AccentPrimary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.1f))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress / 100f)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(AccentPrimary)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = live?.speed.takeIf { !it.isNullOrBlank() } ?: task.status,
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = live?.timeRemaining.takeIf { !it.isNullOrBlank() } ?: "",
-                    color = TextTertiary,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-        }
-    }
-}
-
-private fun formatTime(ms: Long): String {
-    val sec = ms / 1000
-    val m = sec / 60
-    val s = sec % 60
-    return String.format("%02d:%02d", m, s)
-}
-
-@Composable
-private fun ClearHistoryConfirmDialog(
-    onDismiss: () -> Unit,
-    onConfirmClear: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
         Box(
-            modifier = Modifier
-                .width(420.dp)
-                .background(SurfaceDark, RoundedCornerShape(22.dp))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
-                .padding(24.dp)
+            Modifier.fillMaxSize().background(
+                Brush.radialGradient(listOf(TextPrimary.copy(alpha = 0.12f), Color.Transparent))
+            )
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Clear Watch History?",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "This will remove all resume progress and clear the Continue Watching section.",
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center
-                )
+            Icon(
+                icon,
+                null,
+                tint = TextPrimary.copy(alpha = 0.18f),
+                modifier = Modifier.align(Alignment.TopEnd).padding(15.dp).size(34.dp)
+            )
+            MediaCardCopy(title, subtitle, 0f, Modifier.align(Alignment.BottomStart))
+        }
+    }
+}
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FocusableCard(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f).height(44.dp),
-                        containerColor = Color.White.copy(alpha = 0.08f)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Cancel", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    FocusableCard(
-                        onClick = onConfirmClear,
-                        modifier = Modifier.weight(1f).height(44.dp),
-                        containerColor = AccentRose.copy(alpha = 0.85f),
-                        focusedContainerColor = AccentRose
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Clear History", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+@Composable
+private fun MediaCardCopy(title: String, subtitle: String, progress: Float, modifier: Modifier) {
+    Column(modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+        Text(
+            title,
+            color = TextPrimary,
+            fontFamily = DwDisplayFont,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            subtitle,
+            color = TextPrimary.copy(alpha = 0.66f),
+            fontFamily = DwMonoFont,
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (progress > 0f) {
+            Spacer(Modifier.height(5.dp))
+            Box(Modifier.fillMaxWidth().height(3.dp).background(TextPrimary.copy(alpha = 0.18f))) {
+                Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).fillMaxHeight().background(TextPrimary))
             }
         }
     }
+}
+
+private val fallbackImages = listOf(
+    R.drawable.fallback_rain_room,
+    R.drawable.fallback_coast,
+    R.drawable.fallback_forest,
+    R.drawable.fallback_platform,
+    R.drawable.fallback_motel,
+    R.drawable.fallback_lake
+)
+
+private fun PlaybackHistoryEntity.progressFraction(): Float =
+    if (durationMs > 0) (lastPositionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+
+private fun PlaybackHistoryEntity.recentSubtitle(): String {
+    val remainingMinutes = (durationMs - lastPositionMs).coerceAtLeast(0L) / 60_000
+    val source = if (isSmb) "Network" else "TV archive"
+    return if (remainingMinutes > 0) "$remainingMinutes min left · $source" else source
+}
+
+private fun String.cinematicTitle(): String {
+    val withoutExtension = substringBeforeLast('.', this)
+    val tokens = withoutExtension.split('.', '_', '-')
+    val cleanTokens = tokens.takeWhile { token ->
+        !token.matches(Regex("(13|19|20)\\d{2}")) &&
+            !token.equals("DVDRip", true) &&
+            !token.equals("BluRay", true) &&
+            !token.equals("WEBRip", true)
+    }
+    return cleanTokens.joinToString(" ").trim().ifBlank { withoutExtension.replace('.', ' ') }
+}
+
+private fun Long.asCompactDuration(): String {
+    val totalMinutes = this / 60_000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
 }

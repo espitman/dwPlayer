@@ -58,7 +58,7 @@ fun FocusableCard(
     val animatedContentScale by animateFloatAsState(
         targetValue = if (isFocused) contentScale else 1.0f,
         animationSpec = tween(
-            durationMillis = 220,
+            durationMillis = 180,
             easing = FastOutSlowInEasing
         ),
         label = "contentScale"
