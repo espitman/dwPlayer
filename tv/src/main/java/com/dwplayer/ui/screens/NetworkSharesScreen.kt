@@ -5,9 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -42,10 +41,6 @@ import com.dwplayer.data.models.WebDavItem
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
 import kotlinx.coroutines.delay
-
-enum class NetworkTab {
-    ALL, WEBDAV, SMB, DISCOVERY
-}
 
 @Composable
 fun NetworkSharesScreen(
@@ -82,10 +77,10 @@ fun NetworkSharesScreen(
     discoveredServers: List<DiscoveredServerDto>,
     onAddDiscoveredServer: (DiscoveredServerDto) -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(NetworkTab.ALL) }
     var showAddOptionsDialog by remember { mutableStateOf(false) }
     var showAddSmbDialog by remember { mutableStateOf(false) }
     var showAddWebDavDialog by remember { mutableStateOf(false) }
+    var isScanning by remember { mutableStateOf(false) }
     var actionWebDavServer by remember { mutableStateOf<WebDavServerEntity?>(null) }
     var actionSmbShare by remember { mutableStateOf<SmbShareEntity?>(null) }
     var confirmDeleteWebDav by remember { mutableStateOf<WebDavServerEntity?>(null) }
@@ -122,20 +117,43 @@ fun NetworkSharesScreen(
         return
     }
 
-    // Main Hub: Modern Source Grid
+    val phoneServer = webDavServers.firstOrNull { it.isAutoDiscovered }
+    val discoveredPhone = discoveredServers.firstOrNull {
+        it.deviceType.contains("phone", ignoreCase = true) ||
+            it.serviceType.contains("dw", ignoreCase = true)
+    } ?: discoveredServers.firstOrNull()
+    val smbShare = smbShares.firstOrNull()
+    val webDavServer = webDavServers.firstOrNull { !it.isAutoDiscovered }
+
+    LaunchedEffect(isScanning) {
+        if (isScanning) {
+            delay(1_500)
+            isScanning = false
+        }
+    }
+
+    // Main Hub: mirrors the source web prototype while keeping the existing actions.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0x1A234A3A), Color.Transparent),
+                    center = Offset(760f, 10f),
+                    radius = 620f
+                )
+            )
+            .padding(start = 42.dp, end = 42.dp, top = 18.dp, bottom = 28.dp)
     ) {
-        // Header & Actions
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Bottom
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                modifier = Modifier.widthIn(max = 610.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
                 Text(
                     text = "LOCAL & REMOTE SOURCES",
                     color = TextSecondary,
@@ -147,150 +165,153 @@ fun NetworkSharesScreen(
                 Text(
                     text = "Network",
                     color = Color.White,
-                    fontSize = 36.sp,
+                    fontSize = 48.sp,
                     fontWeight = FontWeight.Black,
-                    letterSpacing = (-1).sp
+                    letterSpacing = (-2).sp
                 )
                 Text(
                     text = "Browse devices and shared folders on your home network without moving files to the TV.",
                     color = TextSecondary,
-                    fontSize = 13.sp
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
                 )
             }
 
             FocusableCard(
-                onClick = { showAddOptionsDialog = true },
+                onClick = { isScanning = true },
+                modifier = Modifier.height(50.dp),
+                shape = RoundedCornerShape(15.dp),
                 containerColor = AccentPrimary,
                 focusedContainerColor = AccentSecondary,
                 contentColor = Color(0xFF0D0F0E),
-                focusedContentColor = Color(0xFF0D0F0E)
+                focusedContentColor = Color(0xFF0D0F0E),
+                borderColor = Color.Transparent,
+                focusedBorderColor = Color.White,
+                scale = 1.04f
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 22.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Add, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
-                    Text("Add Source", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
+                    Icon(
+                        if (isScanning) Icons.Default.Sync else Icons.Default.WifiFind,
+                        null,
+                        tint = Color(0xFF0D0F0E),
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Text(
+                        if (isScanning) "Scanning…" else "Scan network",
+                        color = Color(0xFF0D0F0E),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Black
+                    )
                 }
             }
         }
 
-        // Protocol Filter Tabs
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val tabs = listOf(
-                NetworkTab.ALL to "All Sources",
-                NetworkTab.WEBDAV to "WebDAV & Phone (${webDavServers.size})",
-                NetworkTab.SMB to "SMB Shares (${smbShares.size})",
-                NetworkTab.DISCOVERY to "Discovered (${discoveredServers.size})"
+        Spacer(Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            NetworkPrototypeCard(
+                modifier = Modifier
+                    .weight(1.18f)
+                    .fillMaxHeight(),
+                title = phoneServer?.name ?: discoveredPhone?.serviceName ?: "My phone",
+                description = "Videos shared from dwPlayer companion app",
+                meta = when {
+                    phoneServer != null -> "HTTP · ${phoneServer.serverUrl.removePrefix("http://").removePrefix("https://").uppercase()}"
+                    discoveredPhone != null -> "HTTP · ${discoveredPhone.host}:${discoveredPhone.port} · DISCOVERED"
+                    else -> "DWPLAYER COMPANION · NOT FOUND"
+                },
+                icon = Icons.Default.PhoneAndroid,
+                isOnline = phoneServer != null || discoveredPhone != null,
+                large = true,
+                onClick = {
+                    when {
+                        phoneServer != null -> onSelectWebDavServer(phoneServer)
+                        discoveredPhone != null -> onAddDiscoveredServer(discoveredPhone)
+                        else -> showAddWebDavDialog = true
+                    }
+                },
+                onLongClick = phoneServer?.let { server -> { actionWebDavServer = server } }
             )
 
-            tabs.forEach { (tab, label) ->
-                val isSelected = selectedTab == tab
-                FocusableCard(
-                    onClick = { selectedTab = tab },
-                    shape = RoundedCornerShape(10.dp),
-                    containerColor = if (isSelected) Color.White else Color.Transparent,
-                    focusedContainerColor = if (isSelected) Color.White else CardDark
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            color = if (isSelected) Color.Black else TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-            }
-        }
+            Column(
+                modifier = Modifier
+                    .weight(0.82f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                NetworkPrototypeCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    title = smbShare?.name ?: "Home NAS",
+                    description = "Shared media folders over SMB",
+                    meta = if (smbShares.isEmpty()) {
+                        "SMB · NOT CONFIGURED"
+                    } else {
+                        "SMB · ${smbShares.size} ${if (smbShares.size == 1) "SHARE" else "SHARES"}"
+                    },
+                    icon = Icons.Default.Storage,
+                    isOnline = smbShare != null,
+                    onClick = {
+                        if (smbShare != null) onSelectSmbShare(smbShare) else showAddSmbDialog = true
+                    },
+                    onLongClick = smbShare?.let { share -> { actionSmbShare = share } }
+                )
 
-        // Grid Content
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp)
-        ) {
-            // WebDAV Servers
-            if (selectedTab == NetworkTab.ALL || selectedTab == NetworkTab.WEBDAV) {
-                items(webDavServers, key = { "webdav_${it.id}" }) { server ->
-                    NetworkSourceCard(
-                        title = server.name,
-                        subtitle = server.serverUrl,
-                        protocol = if (server.isAutoDiscovered) "PHONE" else "WEBDAV",
-                        icon = if (server.isAutoDiscovered) Icons.Default.PhoneAndroid else Icons.Default.CloudQueue,
-                        isOnline = true,
-                        onClick = { onSelectWebDavServer(server) },
-                        onLongClick = { actionWebDavServer = server }
-                    )
-                }
+                NetworkPrototypeCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    title = "Add source",
+                    description = "Connect a new SMB or WebDAV server",
+                    meta = "MANUAL SETUP",
+                    icon = Icons.Default.Add,
+                    isOnline = false,
+                    onClick = { showAddOptionsDialog = true }
+                )
             }
 
-            // SMB Shares
-            if (selectedTab == NetworkTab.ALL || selectedTab == NetworkTab.SMB) {
-                items(smbShares, key = { "smb_${it.id}" }) { share ->
-                    NetworkSourceCard(
-                        title = share.name,
-                        subtitle = "smb://${share.host}/${share.shareName}",
-                        protocol = "SMB",
-                        icon = Icons.Default.FolderShared,
-                        isOnline = true,
-                        onClick = { onSelectSmbShare(share) },
-                        onLongClick = { actionSmbShare = share }
-                    )
-                }
-            }
+            Column(
+                modifier = Modifier
+                    .weight(0.82f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                NetworkPrototypeCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    title = webDavServer?.name ?: "WebDAV",
+                    description = "Your private remote archive",
+                    meta = if (webDavServer == null) {
+                        "HTTPS · NOT CONFIGURED"
+                    } else {
+                        "${if (webDavServer.serverUrl.startsWith("https", true)) "HTTPS" else "HTTP"} · ${webDavServers.count { !it.isAutoDiscovered }} ${if (webDavServers.count { !it.isAutoDiscovered } == 1) "SERVER" else "SERVERS"}"
+                    },
+                    icon = Icons.Default.CloudQueue,
+                    isOnline = webDavServer != null,
+                    onClick = {
+                        if (webDavServer != null) onSelectWebDavServer(webDavServer) else showAddWebDavDialog = true
+                    },
+                    onLongClick = webDavServer?.let { server -> { actionWebDavServer = server } }
+                )
 
-            // Discovered Servers
-            if (selectedTab == NetworkTab.ALL || selectedTab == NetworkTab.DISCOVERY) {
-                items(discoveredServers, key = { "disc_${it.host}_${it.port}" }) { item ->
-                    NetworkSourceCard(
-                        title = item.serviceName,
-                        subtitle = item.url,
-                        protocol = item.deviceType.uppercase(),
-                        icon = Icons.Default.WifiTethering,
-                        isOnline = true,
-                        onClick = { onAddDiscoveredServer(item) },
-                        onLongClick = { onAddDiscoveredServer(item) }
-                    )
-                }
-            }
-
-            // Add New Source Tile
-            item {
-                FocusableCard(
-                    onClick = { showAddOptionsDialog = true },
-                    modifier = Modifier.height(130.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    containerColor = CardDark.copy(alpha = 0.4f),
-                    focusedContainerColor = CardDark
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(18.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.06f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Add, null, tint = AccentPrimary, modifier = Modifier.size(20.dp))
-                        }
-
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Add Source", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            Text("Connect a new SMB or WebDAV server", color = TextSecondary, fontSize = 12.sp)
-                        }
-                    }
-                }
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
             }
         }
     }
@@ -451,28 +472,33 @@ fun NetworkSharesScreen(
 }
 
 @Composable
-private fun NetworkSourceCard(
+private fun NetworkPrototypeCard(
+    modifier: Modifier,
     title: String,
-    subtitle: String,
-    protocol: String,
+    description: String,
+    meta: String,
     icon: ImageVector,
     isOnline: Boolean,
+    large: Boolean = false,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: (() -> Unit)? = null
 ) {
     FocusableCard(
         onClick = onClick,
         onLongClick = onLongClick,
-        modifier = Modifier.height(130.dp),
-        shape = RoundedCornerShape(20.dp),
-        containerColor = CardDark.copy(alpha = 0.7f),
-        focusedContainerColor = CardDark
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        containerColor = SurfaceDark.copy(alpha = 0.82f),
+        focusedContainerColor = CardDark,
+        borderColor = Color.White.copy(alpha = 0.11f),
+        focusedBorderColor = AccentPrimary,
+        scale = 1.025f
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(if (large) 28.dp else 16.dp),
+            verticalArrangement = if (large) Arrangement.Top else Arrangement.SpaceBetween
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -481,12 +507,22 @@ private fun NetworkSourceCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.06f)),
+                        .size(if (large) 58.dp else 42.dp)
+                        .clip(RoundedCornerShape(if (large) 18.dp else 15.dp))
+                        .background(Color.White.copy(alpha = 0.055f))
+                        .border(
+                            1.dp,
+                            Color.White.copy(alpha = 0.08f),
+                            RoundedCornerShape(if (large) 18.dp else 15.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(icon, null, tint = AccentPrimary, modifier = Modifier.size(20.dp))
+                    Icon(
+                        icon,
+                        null,
+                        tint = if (title == "Add source") AccentPrimary else TextSecondary,
+                        modifier = Modifier.size(if (large) 28.dp else 21.dp)
+                    )
                 }
 
                 if (isOnline) {
@@ -511,19 +547,34 @@ private fun NetworkSourceCard(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (large) {
+                Spacer(Modifier.height(26.dp))
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(if (large) 6.dp else 2.dp)) {
                 Text(
                     text = title,
                     color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = if (large) 28.sp else 18.sp,
+                    fontWeight = FontWeight.Black,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = subtitle,
+                    text = description,
                     color = TextSecondary,
-                    fontSize = 11.sp,
+                    fontSize = if (large) 14.sp else 11.sp,
+                    lineHeight = if (large) 19.sp else 14.sp,
+                    maxLines = if (large) 2 else 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(if (large) 8.dp else 1.dp))
+                Text(
+                    text = meta,
+                    color = TextTertiary,
+                    fontSize = if (large) 10.sp else 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
                     maxLines = 1,
                     fontFamily = FontFamily.Monospace,
                     overflow = TextOverflow.Ellipsis
