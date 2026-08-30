@@ -59,7 +59,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
             var showAddDialog by remember { mutableStateOf(false) }
-            var addDialogInitialPlaylistId by remember { mutableStateOf<String?>(null) }
 
             val tasks by viewModel.tasks.collectAsState()
             val playlists by viewModel.playlists.collectAsState()
@@ -271,17 +270,15 @@ class MainActivity : ComponentActivity() {
 
                         // Add Download Link Modal
                         if (showAddDialog) {
-                            AddDownloadDialog(
-                                companionUrl = companionUrl,
-                                playlists = playlists,
-                                initialPlaylistId = addDialogInitialPlaylistId,
-                                onCreatePlaylist = { viewModel.createPlaylist(it) },
+                            AddUrlDrawer(
                                 onDismiss = {
                                     showAddDialog = false
-                                    addDialogInitialPlaylistId = null
                                 },
-                                onAddUrl = { url, name, playlistId ->
-                                    viewModel.enqueueDownload(url, name, playlistId)
+                                onOpenUrl = { url ->
+                                    val streamTitle = Uri.parse(url).lastPathSegment
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: "Network stream"
+                                    playMedia(url, streamTitle, isSmb = false)
                                 }
                             )
                         }

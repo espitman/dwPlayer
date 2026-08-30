@@ -1,309 +1,273 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 package com.dwplayer.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
-import com.dwplayer.data.entities.PlaylistWithItems
-import com.dwplayer.ui.components.CreatePlaylistDialog
 import com.dwplayer.ui.components.FocusableCard
-import com.dwplayer.ui.components.QrCodeView
 import com.dwplayer.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
-fun AddDownloadDialog(
-    companionUrl: String,
-    playlists: List<PlaylistWithItems> = emptyList(),
-    initialPlaylistId: String? = null,
-    onCreatePlaylist: ((String) -> Unit)? = null,
+fun AddUrlDrawer(
     onDismiss: () -> Unit,
-    onAddUrl: (url: String, name: String?, playlistId: String?) -> Unit
+    onOpenUrl: (String) -> Unit
 ) {
     var inputUrl by remember { mutableStateOf("") }
-    var inputName by remember { mutableStateOf("") }
-    var selectedPlaylistId by remember { mutableStateOf<String?>(initialPlaylistId) }
-    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+    var validationMessage by remember { mutableStateOf<String?>(null) }
+    var drawerVisible by remember { mutableStateOf(false) }
+    var isClosing by remember { mutableStateOf(false) }
 
-    if (showCreatePlaylistDialog && onCreatePlaylist != null) {
-        CreatePlaylistDialog(
-            onDismiss = { showCreatePlaylistDialog = false },
-            onCreate = { name ->
-                onCreatePlaylist(name)
-            }
-        )
+    val scope = rememberCoroutineScope()
+    val inputFocusRequester = remember { FocusRequester() }
+    val closeFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (drawerVisible) 0.72f else 0f,
+        animationSpec = tween(260),
+        label = "urlDrawerScrim"
+    )
+
+    fun closeDrawer(afterClose: (() -> Unit)? = null) {
+        if (isClosing) return
+        isClosing = true
+        keyboardController?.hide()
+        drawerVisible = false
+        scope.launch {
+            delay(260)
+            onDismiss()
+            afterClose?.invoke()
+        }
+    }
+
+    fun submitUrl() {
+        val value = inputUrl.trim()
+        if (!value.matches(Regex("^https?://.+", RegexOption.IGNORE_CASE))) {
+            validationMessage = "Enter a valid HTTP or HTTPS URL"
+            scope.launch { inputFocusRequester.requestFocus() }
+            return
+        }
+
+        validationMessage = null
+        closeDrawer { onOpenUrl(value) }
+    }
+
+    LaunchedEffect(Unit) {
+        drawerVisible = true
+        delay(300)
+        // Keep the initial TV view unobstructed. The URL field receives focus
+        // through D-pad navigation and opens the system keyboard on demand.
+        closeFocusRequester.requestFocus()
+        keyboardController?.hide()
     }
 
     Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        onDismissRequest = { closeDrawer() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.78f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(SurfaceDark)
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
-                .padding(26.dp)
+                .fillMaxSize()
+                .background(BgDark.copy(alpha = scrimAlpha))
         ) {
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            AnimatedVisibility(
+                visible = drawerVisible,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxWidth(0.43f)
+                    .fillMaxHeight(),
+                enter = slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300)
+                ) + fadeIn(tween(180)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(260)
+                ) + fadeOut(tween(180))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(SurfaceDark.copy(alpha = 0.98f))
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = "Add Media or Series Download",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            text = "Scan QR code with phone or type link below",
-                            color = TextSecondary,
-                            fontSize = 12.sp
-                        )
-                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(BorderDark)
+                    )
 
-                    FocusableCard(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(36.dp),
-                        containerColor = Color.White.copy(alpha = 0.05f)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Close, "Close", tint = Color.White, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    // Left: QR Code companion
                     Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(CardDark.copy(alpha = 0.6f))
-                            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(18.dp))
-                            .padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .fillMaxSize()
+                            .padding(54.dp)
                     ) {
-                        Text(
-                            text = "Phone Remote",
-                            color = AccentPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Open a URL",
+                                color = Color.White,
+                                fontSize = 38.sp,
+                                lineHeight = 42.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = (-1.2).sp
+                            )
 
-                        QrCodeView(data = companionUrl, size = 140.dp)
-
-                        Text(
-                            text = companionUrl,
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    // Right: Manual Input
-                    Column(
-                        modifier = Modifier.weight(1.7f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // URL Input Box
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Direct Media / Stream URL *", color = TextSecondary, fontSize = 11.sp)
-                            Box(
+                            FocusableCard(
+                                onClick = { closeDrawer() },
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(CardDark)
-                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 14.dp),
-                                contentAlignment = Alignment.CenterStart
+                                    .size(52.dp)
+                                    .focusRequester(closeFocusRequester),
+                                shape = RoundedCornerShape(16.dp),
+                                containerColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent,
+                                borderColor = BorderDark,
+                                focusedBorderColor = BorderDark,
+                                scale = 1f
                             ) {
-                                BasicTextField(
-                                    value = inputUrl,
-                                    onValueChange = { inputUrl = it },
-                                    singleLine = true,
-                                    cursorBrush = SolidColor(AccentPrimary),
-                                    textStyle = TextStyle(color = Color.White, fontSize = 13.sp, fontFamily = FontFamily.Monospace),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                if (inputUrl.isEmpty()) {
-                                    Text("https://.../movie.mp4", color = TextTertiary, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Close",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(25.dp)
+                                    )
                                 }
                             }
                         }
 
-                        // File Name Box
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Custom Name (Optional)", color = TextSecondary, fontSize = 11.sp)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(CardDark)
-                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 14.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                BasicTextField(
-                                    value = inputName,
-                                    onValueChange = { inputName = it },
-                                    singleLine = true,
-                                    cursorBrush = SolidColor(AccentPrimary),
-                                    textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                if (inputName.isEmpty()) {
-                                    Text("Episode.01.mkv", color = TextTertiary, fontSize = 13.sp)
-                                }
-                            }
-                        }
+                        Spacer(Modifier.height(54.dp))
 
-                        // Playlist Selection
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    "Assign to Series (Optional)",
-                                    color = TextSecondary,
-                                    fontSize = 11.sp
-                                )
-                                if (onCreatePlaylist != null) {
-                                    FocusableCard(
-                                        onClick = { showCreatePlaylistDialog = true },
-                                        containerColor = Color.Transparent
-                                    ) {
-                                        Text(
-                                            "+ New Series",
-                                            color = AccentPrimary,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
+                        Text(
+                            text = "Direct media or stream URL",
+                            color = TextSecondary,
+                            fontSize = 13.sp
+                        )
+                        Spacer(Modifier.height(10.dp))
 
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                item {
-                                    val isNone = selectedPlaylistId == null
-                                    FocusableCard(
-                                        onClick = { selectedPlaylistId = null },
-                                        containerColor = if (isNone) Color.White else Color.White.copy(alpha = 0.06f),
-                                        focusedContainerColor = if (isNone) Color.White else CardDark,
-                                        modifier = Modifier.height(34.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxHeight(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                "None",
-                                                color = if (isNone) Color.Black else TextSecondary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-
-                                items(playlists, key = { it.playlist.id }) { p ->
-                                    val isSel = selectedPlaylistId == p.playlist.id
-                                    FocusableCard(
-                                        onClick = { selectedPlaylistId = p.playlist.id },
-                                        containerColor = if (isSel) AccentPrimary else Color.White.copy(alpha = 0.06f),
-                                        focusedContainerColor = AccentPrimary,
-                                        modifier = Modifier.height(34.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).fillMaxHeight(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.PlaylistPlay,
-                                                null,
-                                                tint = if (isSel) Color(0xFF0D0F0E) else TextSecondary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Text(
-                                                p.playlist.name,
-                                                color = if (isSel) Color(0xFF0D0F0E) else Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Submit Button
-                        FocusableCard(
-                            onClick = {
-                                if (inputUrl.isNotBlank()) {
-                                    onAddUrl(inputUrl.trim(), inputName.trim().ifEmpty { null }, selectedPlaylistId)
-                                    onDismiss()
-                                }
-                            },
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp),
+                                .height(66.dp)
+                                .clip(RoundedCornerShape(15.dp))
+                                .background(BgDark)
+                                .border(
+                                    width = 3.dp,
+                                    color = when {
+                                        validationMessage != null -> AccentRose
+                                        else -> AccentPrimary
+                                    },
+                                    shape = RoundedCornerShape(15.dp)
+                                )
+                                .padding(horizontal = 18.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            BasicTextField(
+                                value = inputUrl,
+                                onValueChange = {
+                                    inputUrl = it
+                                    validationMessage = null
+                                },
+                                singleLine = true,
+                                cursorBrush = SolidColor(Color.White),
+                                textStyle = TextStyle(
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontFamily = FontFamily.SansSerif
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Uri,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = { submitUrl() }),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(inputFocusRequester)
+                            )
+
+                            if (inputUrl.isEmpty()) {
+                                Text(
+                                    text = "https://example.com/video.mp4",
+                                    color = TextTertiary,
+                                    fontSize = 18.sp
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = validationMessage
+                                ?: "HTTP, HTTPS, HLS and direct video files are supported.",
+                            color = if (validationMessage != null) AccentRose else TextSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 19.sp
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        FocusableCard(
+                            onClick = { submitUrl() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(15.dp),
                             containerColor = AccentPrimary,
                             focusedContainerColor = AccentSecondary,
-                            contentColor = Color(0xFF0D0F0E),
-                            focusedContentColor = Color(0xFF0D0F0E)
+                            contentColor = BgDark,
+                            focusedContentColor = BgDark,
+                            borderColor = Color.Transparent,
+                            focusedBorderColor = Color.White,
+                            scale = 1.025f
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Download, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Start Download", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "Check and open",
+                                    color = BgDark,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Black
+                                )
                             }
                         }
                     }
