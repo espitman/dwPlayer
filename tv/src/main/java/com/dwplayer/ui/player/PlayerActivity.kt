@@ -44,6 +44,9 @@ class PlayerActivity : ComponentActivity() {
 
     private var hideControlsJob: Job? = null
     private var isControlsVisible by mutableStateOf(true)
+    private var quickSeekFeedbackJob: Job? = null
+    private var quickSeekSeconds by mutableStateOf<Int?>(null)
+    private var quickSeekEventId by mutableLongStateOf(0L)
 
     private var playlistId: String? = null
     private var currentItemId by mutableStateOf<String?>(null)
@@ -225,6 +228,11 @@ class PlayerActivity : ComponentActivity() {
                             isControlsVisible = false
                         }
                     )
+
+                    QuickSeekFeedbackOverlay(
+                        seconds = quickSeekSeconds,
+                        eventId = quickSeekEventId
+                    )
                 }
             }
         }
@@ -261,6 +269,21 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
+    private fun performQuickSeek(seconds: Int) {
+        videoPlayer.seekRelative(seconds * 1_000L)
+
+        quickSeekEventId += 1L
+        val eventId = quickSeekEventId
+        quickSeekSeconds = seconds
+        quickSeekFeedbackJob?.cancel()
+        quickSeekFeedbackJob = lifecycleScope.launch {
+            delay(QUICK_SEEK_FEEDBACK_DURATION_MS)
+            if (eventId == quickSeekEventId) {
+                quickSeekSeconds = null
+            }
+        }
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         return when (keyCode) {
             KeyEvent.KEYCODE_BACK -> {
@@ -294,7 +317,7 @@ class PlayerActivity : ComponentActivity() {
             }
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (!isControlsVisible) {
-                    videoPlayer.seekRelative(10_000)
+                    performQuickSeek(QUICK_SEEK_SECONDS)
                     true
                 } else {
                     resetControlsTimeout()
@@ -303,7 +326,7 @@ class PlayerActivity : ComponentActivity() {
             }
             KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_DPAD_LEFT -> {
                 if (!isControlsVisible) {
-                    videoPlayer.seekRelative(-10_000)
+                    performQuickSeek(-QUICK_SEEK_SECONDS)
                     true
                 } else {
                     resetControlsTimeout()
@@ -332,7 +355,13 @@ class PlayerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        quickSeekFeedbackJob?.cancel()
         videoPlayer.release()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val QUICK_SEEK_SECONDS = 10
+        const val QUICK_SEEK_FEEDBACK_DURATION_MS = 900L
     }
 }

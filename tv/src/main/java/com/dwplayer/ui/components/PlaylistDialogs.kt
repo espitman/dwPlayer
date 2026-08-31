@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
+import androidx.tv.material3.LocalContentColor
 import com.dwplayer.data.entities.PlaylistWithItems
 import com.dwplayer.data.models.LocalArchiveFile
 import com.dwplayer.ui.theme.*
@@ -164,16 +165,18 @@ fun CreatePlaylistDialog(
                             .weight(1.3f)
                             .height(44.dp),
                         containerColor = AccentPrimary,
-                        focusedContainerColor = AccentSecondary
+                        focusedContainerColor = AccentSecondary,
+                        contentColor = BgDark,
+                        focusedContentColor = BgDark
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize(),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Add, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Create Series", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Create Series", color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -243,15 +246,17 @@ fun AddToPlaylistDialog(
                     FocusableCard(
                         onClick = { showCreateDialog = true },
                         containerColor = AccentPrimary.copy(alpha = 0.2f),
-                        focusedContainerColor = AccentPrimary
+                        focusedContainerColor = AccentPrimary,
+                        contentColor = TextPrimary,
+                        focusedContentColor = BgDark
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Text("New Playlist", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.Add, null, tint = LocalContentColor.current, modifier = Modifier.size(16.dp))
+                            Text("New Playlist", color = LocalContentColor.current, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -279,11 +284,13 @@ fun AddToPlaylistDialog(
                         FocusableCard(
                             onClick = { showCreateDialog = true },
                             containerColor = AccentPrimary,
-                            focusedContainerColor = AccentSecondary
+                            focusedContainerColor = AccentSecondary,
+                            contentColor = BgDark,
+                            focusedContentColor = BgDark
                         ) {
                             Text(
                                 text = "+ Create New Playlist",
-                                color = Color.White,
+                                color = LocalContentColor.current,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

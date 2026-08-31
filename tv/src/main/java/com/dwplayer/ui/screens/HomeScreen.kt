@@ -29,7 +29,9 @@ import com.dwplayer.R
 import com.dwplayer.data.entities.DownloadTaskEntity
 import com.dwplayer.data.entities.PlaybackHistoryEntity
 import com.dwplayer.data.entities.SmbShareEntity
+import com.dwplayer.data.entities.WebDavServerEntity
 import com.dwplayer.data.models.DownloadProgressInfo
+import com.dwplayer.data.models.LocalArchiveFile
 import com.dwplayer.data.models.StorageInfo
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.theme.*
@@ -41,6 +43,8 @@ fun HomeScreen(
     activeTasks: List<DownloadTaskEntity>,
     liveProgress: Map<String, DownloadProgressInfo>,
     smbShares: List<SmbShareEntity>,
+    webDavServers: List<WebDavServerEntity>,
+    archiveFiles: List<LocalArchiveFile>,
     storageInfo: StorageInfo,
     companionUrl: String,
     onPlayMedia: (String, String, Boolean) -> Unit,
@@ -50,7 +54,15 @@ fun HomeScreen(
     onOpenAddDialog: () -> Unit,
     onClearHistory: () -> Unit = {}
 ) {
-    val featured = historyList.firstOrNull()
+    val archivePaths = archiveFiles.mapTo(hashSetOf()) { it.path.removePrefix("file://") }
+    val visibleHistory = historyList.filter { item ->
+        item.isSmb ||
+            item.mediaUri.startsWith("http://", ignoreCase = true) ||
+            item.mediaUri.startsWith("https://", ignoreCase = true) ||
+            item.mediaUri.startsWith("content://", ignoreCase = true) ||
+            item.mediaUri.removePrefix("file://") in archivePaths
+    }
+    val featured = visibleHistory.firstOrNull()
     val progress = featured?.progressFraction() ?: 0f
     val progressPercent = (progress * 100).toInt().coerceIn(0, 99)
 
@@ -74,10 +86,12 @@ fun HomeScreen(
             )
 
             RecentMediaRail(
-                historyList = historyList,
+                historyList = visibleHistory,
                 activeTasks = activeTasks,
                 liveProgress = liveProgress,
                 smbShares = smbShares,
+                webDavServers = webDavServers,
+                archiveFiles = archiveFiles,
                 storageInfo = storageInfo,
                 isRemoteConnected = companionUrl.isNotBlank(),
                 modifier = Modifier
@@ -244,6 +258,8 @@ private fun RecentMediaRail(
     activeTasks: List<DownloadTaskEntity>,
     liveProgress: Map<String, DownloadProgressInfo>,
     smbShares: List<SmbShareEntity>,
+    webDavServers: List<WebDavServerEntity>,
+    archiveFiles: List<LocalArchiveFile>,
     storageInfo: StorageInfo,
     isRemoteConnected: Boolean,
     modifier: Modifier,
@@ -253,8 +269,14 @@ private fun RecentMediaRail(
     onOpenAddDialog: () -> Unit
 ) {
     val recent = historyList.take(2)
+    val historyPaths = historyList.mapTo(hashSetOf()) { it.mediaUri.removePrefix("file://") }
+    val recentArchive = archiveFiles
+        .filterNot { it.path in historyPaths }
+        .take((2 - recent.size).coerceAtLeast(0))
     val activeTask = activeTasks.firstOrNull()
-    val sourceCount = historyList.size + smbShares.size
+    val recentCount = recent.size + recentArchive.size
+    val networkSourceCount = smbShares.size + webDavServers.size
+    val sourceCount = archiveFiles.size + networkSourceCount
 
     Column(modifier) {
         Row(
@@ -294,7 +316,17 @@ private fun RecentMediaRail(
                     onClick = { onPlayMedia(item.mediaUri, item.title, item.isSmb) }
                 )
             }
-            if (activeTask != null && recent.size < 2) {
+            recentArchive.forEachIndexed { index, file ->
+                CinematicMediaCard(
+                    title = file.name.cinematicTitle(),
+                    subtitle = "${file.extension} · ${file.sizeFormatted} · TV archive",
+                    imageRes = fallbackImages[(recent.size + index) % fallbackImages.size],
+                    progress = 0f,
+                    modifier = Modifier.weight(if (recentCount == 1) 1.25f else 1f),
+                    onClick = { onPlayMedia(file.path, file.name, false) }
+                )
+            }
+            if (activeTask != null && recentCount < 2) {
                 val downloadProgress = liveProgress[activeTask.id]?.progress ?: activeTask.progress
                 AbstractMediaCard(
                     activeTask.fileName.cinematicTitle(),
@@ -305,13 +337,13 @@ private fun RecentMediaRail(
                 )
             }
             AbstractMediaCard(
-                if (smbShares.isEmpty()) "Phone files" else "Network files",
-                if (smbShares.isEmpty()) "Browse available devices" else "${smbShares.size} sources connected",
+                if (networkSourceCount == 0) "Phone files" else "Network files",
+                if (networkSourceCount == 0) "Browse available devices" else "$networkSourceCount saved source${if (networkSourceCount == 1) "" else "s"}",
                 Icons.Default.CloudQueue,
                 Modifier.weight(1f),
                 onNavigateSmb
             )
-            if (recent.size + (if (activeTask != null && recent.size < 2) 1 else 0) < 2) {
+            if (recentCount + (if (activeTask != null && recentCount < 2) 1 else 0) < 2) {
                 AbstractMediaCard(
                     "Open a stream",
                     "Paste a direct URL",
@@ -452,6 +484,7 @@ private fun String.cinematicTitle(): String {
 
 private fun Long.asCompactDuration(): String {
     val totalMinutes = this / 60_000
+    if (this > 0L && totalMinutes == 0L) return "<1m"
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"

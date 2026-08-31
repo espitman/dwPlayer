@@ -27,6 +27,7 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,12 +51,13 @@ fun NetworkSharesScreen(
     currentSmbPath: String,
     smbItems: List<SmbItem>,
     isSmbLoading: Boolean,
+    smbError: String?,
     onSelectSmbShare: (SmbShareEntity) -> Unit,
     onNavigateSmbPath: (String) -> Unit,
     onBackSmbPath: () -> Unit,
     onPlaySmbFile: (SmbShareEntity, String, String) -> Unit,
     onDownloadSmbFile: (SmbShareEntity, SmbItem) -> Unit,
-    onAddSmbShare: (String, String, String, String?, String?, String?) -> Unit,
+    onAddSmbShare: (String, String, String, String?, String?, String?, (Boolean, String) -> Unit) -> Unit,
     onDeleteSmbShare: (String) -> Unit,
 
     // WebDAV
@@ -93,6 +95,7 @@ fun NetworkSharesScreen(
             path = currentSmbPath,
             items = smbItems,
             isLoading = isSmbLoading,
+            errorMessage = smbError,
             onNavigate = onNavigateSmbPath,
             onBack = onBackSmbPath,
             onPlay = { path, name -> onPlaySmbFile(currentSmbShare, path, name) },
@@ -463,10 +466,8 @@ fun NetworkSharesScreen(
     if (showAddSmbDialog) {
         AddSmbShareDialog(
             onDismiss = { showAddSmbDialog = false },
-            onConfirm = { name, host, share, user, pass, domain ->
-                onAddSmbShare(name, host, share, user, pass, domain)
-                showAddSmbDialog = false
-            }
+            onConfirm = onAddSmbShare,
+            onSaved = { showAddSmbDialog = false }
         )
     }
 }
@@ -787,94 +788,60 @@ private fun WebDavBrowserView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(start = 42.dp, end = 42.dp, top = 24.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        NetworkBrowserHeader(
+            kicker = "WEBDAV · REMOTE STORAGE",
+            title = server.name,
+            path = if (path.isBlank() || path == "/") "ROOT DIRECTORY" else path,
+            actionLabel = if (path.isBlank() || path == "/") "Exit server" else "Up one level",
+            onBack = onBack
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceDark.copy(alpha = 0.54f))
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(22.dp))
+                .padding(18.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(server.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                Text(
-                    text = if (path.isBlank() || path == "/") "Root Directory" else path,
-                    color = AccentPrimary,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+            when {
+                isLoading -> NetworkBrowserState(
+                    icon = Icons.Default.CloudSync,
+                    title = "Loading files",
+                    description = "Connecting to ${server.name} and reading this folder."
                 )
-            }
-
-            FocusableCard(
-                onClick = onBack,
-                containerColor = Color.White.copy(alpha = 0.08f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                errorMessage != null -> NetworkBrowserState(
+                    icon = Icons.Default.ErrorOutline,
+                    title = "Could not open this folder",
+                    description = errorMessage,
+                    accent = AccentRose
+                )
+                items.isEmpty() -> NetworkBrowserState(
+                    icon = Icons.Default.FolderOff,
+                    title = "This folder is empty",
+                    description = "No folders or playable media were found here."
+                )
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.ArrowBack, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Text(if (path.isBlank() || path == "/") "Exit Server" else "Up One Level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Loading files...", color = TextSecondary, fontSize = 14.sp)
-            }
-        } else if (errorMessage != null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Error: $errorMessage", color = AccentRose, fontSize = 14.sp)
-            }
-        } else if (items.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("This folder is empty", color = TextTertiary, fontSize = 14.sp)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(items, key = { it.path }) { item ->
-                    FocusableCard(
-                        onClick = {
-                            if (item.isDirectory) onNavigate(item.path)
-                            else if (item.isVideo) onPlay(item)
-                        },
-                        onLongClick = { if (item.isVideo) actionItem = item },
-                        modifier = Modifier.fillMaxWidth().height(64.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        containerColor = CardDark.copy(alpha = 0.7f),
-                        focusedContainerColor = CardDark
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (item.isDirectory) Icons.Default.Folder else Icons.Default.Movie,
-                                    contentDescription = null,
-                                    tint = if (item.isDirectory) TextSecondary else AccentPrimary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(item.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(item.formattedSize, color = TextSecondary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                                }
-                            }
-
-                            if (item.isVideo) {
-                                Text("Stream", color = AccentPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                    items(items, key = { it.path }) { item ->
+                        NetworkBrowserRow(
+                            name = item.name,
+                            meta = if (item.isDirectory) "FOLDER" else item.formattedSize,
+                            isDirectory = item.isDirectory,
+                            isPlayable = item.isVideo,
+                            badge = if (item.isDirectory) "Browse" else if (item.isVideo) "Stream" else "File",
+                            onClick = {
+                                if (item.isDirectory) onNavigate(item.path)
+                                else if (item.isVideo) onPlay(item)
+                            },
+                            onLongClick = if (item.isVideo) ({ actionItem = item }) else null
+                        )
                     }
                 }
             }
@@ -888,6 +855,7 @@ private fun SmbBrowserView(
     path: String,
     items: List<SmbItem>,
     isLoading: Boolean,
+    errorMessage: String?,
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
     onPlay: (String, String) -> Unit,
@@ -915,96 +883,266 @@ private fun SmbBrowserView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(start = 42.dp, end = 42.dp, top = 24.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        NetworkBrowserHeader(
+            kicker = "SMB · NETWORK STORAGE",
+            title = share.name,
+            path = if (path.isBlank() || path == "/") "ROOT DIRECTORY" else path,
+            actionLabel = if (path.isBlank() || path == "/") "Exit share" else "Up one level",
+            onBack = onBack
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SurfaceDark.copy(alpha = 0.54f))
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(22.dp))
+                .padding(18.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(share.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                Text(
-                    text = if (path.isBlank() || path == "/") "Root Directory" else path,
-                    color = AccentPrimary,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+            when {
+                isLoading -> NetworkBrowserState(
+                    icon = Icons.Default.CloudSync,
+                    title = "Loading files",
+                    description = "Connecting to ${share.name} and reading this folder."
                 )
-            }
-
-            FocusableCard(
-                onClick = onBack,
-                containerColor = Color.White.copy(alpha = 0.08f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                errorMessage != null -> NetworkBrowserState(
+                    icon = Icons.Default.ErrorOutline,
+                    title = "Could not open this folder",
+                    description = errorMessage,
+                    accent = AccentRose
+                )
+                items.isEmpty() -> NetworkBrowserState(
+                    icon = Icons.Default.FolderOff,
+                    title = "This folder is empty",
+                    description = "No folders or playable media were found here."
+                )
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.ArrowBack, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Text(if (path.isBlank() || path == "/") "Exit Share" else "Up One Level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Loading SMB directory...", color = TextSecondary, fontSize = 14.sp)
-            }
-        } else if (items.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("This folder is empty", color = TextTertiary, fontSize = 14.sp)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(items, key = { it.path }) { item ->
-                    val isVideo = !item.isDirectory && item.name.substringAfterLast('.', "").lowercase() in listOf("mp4", "mkv", "avi", "mov", "webm", "ts", "m4v")
-                    FocusableCard(
-                        onClick = {
-                            if (item.isDirectory) onNavigate(item.path)
-                            else if (isVideo) onPlay(item.path, item.name)
-                        },
-                        onLongClick = { if (isVideo) actionItem = item },
-                        modifier = Modifier.fillMaxWidth().height(64.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        containerColor = CardDark.copy(alpha = 0.7f),
-                        focusedContainerColor = CardDark
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (item.isDirectory) Icons.Default.Folder else Icons.Default.Movie,
-                                    contentDescription = null,
-                                    tint = if (item.isDirectory) TextSecondary else AccentPrimary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(item.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(if (item.isDirectory) "Folder" else "${item.size / (1024 * 1024)} MB", color = TextSecondary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                                }
-                            }
-
-                            if (isVideo) {
-                                Text("Play SMB", color = AccentPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                    items(items, key = { it.path }) { item ->
+                        val isVideo = !item.isDirectory && item.name.substringAfterLast('.', "").lowercase() in listOf("mp4", "mkv", "avi", "mov", "webm", "ts", "m4v")
+                        NetworkBrowserRow(
+                            name = item.name,
+                            meta = if (item.isDirectory) "FOLDER" else formatNetworkBytes(item.size),
+                            isDirectory = item.isDirectory,
+                            isPlayable = isVideo,
+                            badge = if (item.isDirectory) "Browse" else if (isVideo) "Play SMB" else "File",
+                            onClick = {
+                                if (item.isDirectory) onNavigate(item.path)
+                                else if (isVideo) onPlay(item.path, item.name)
+                            },
+                            onLongClick = if (isVideo) ({ actionItem = item }) else null
+                        )
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun NetworkBrowserHeader(
+    kicker: String,
+    title: String,
+    path: String,
+    actionLabel: String,
+    onBack: () -> Unit
+) {
+    val backFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(title, path) {
+        delay(120)
+        runCatching { backFocusRequester.requestFocus() }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(
+                text = kicker,
+                color = TextSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.5.sp
+            )
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 48.sp,
+                lineHeight = 52.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-2).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = path,
+                color = TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        FocusableCard(
+            onClick = onBack,
+            modifier = Modifier
+                .height(50.dp)
+                .focusRequester(backFocusRequester),
+            shape = RoundedCornerShape(15.dp),
+            containerColor = Color.White.copy(alpha = 0.08f),
+            focusedContainerColor = CardDark,
+            borderColor = Color.White.copy(alpha = 0.16f),
+            focusedBorderColor = AccentPrimary
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.ArrowBack, null, tint = Color.White, modifier = Modifier.size(19.dp))
+                Text(actionLabel, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NetworkBrowserState(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    accent: Color = TextSecondary
+) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color.White.copy(alpha = 0.055f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = accent, modifier = Modifier.size(32.dp))
+            }
+            Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Text(
+                text = description,
+                color = if (accent == AccentRose) AccentRose else TextSecondary,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = 520.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun NetworkBrowserRow(
+    name: String,
+    meta: String,
+    isDirectory: Boolean,
+    isPlayable: Boolean,
+    badge: String,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?
+) {
+    FocusableCard(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        modifier = Modifier.fillMaxWidth().height(76.dp),
+        shape = RoundedCornerShape(16.dp),
+        containerColor = SurfaceDark.copy(alpha = 0.82f),
+        focusedContainerColor = CardDark,
+        borderColor = Color.Transparent,
+        focusedBorderColor = AccentPrimary,
+        scale = 1.008f
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(Color.White.copy(alpha = 0.055f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isDirectory) Icons.Default.Folder else Icons.Default.Movie,
+                        contentDescription = null,
+                        tint = if (isPlayable) AccentPrimary else TextSecondary,
+                        modifier = Modifier.size(23.dp)
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = name,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = meta,
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = badge,
+                    color = if (isPlayable) AccentPrimary else TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+private fun formatNetworkBytes(bytes: Long): String {
+    if (bytes <= 0L) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val unitIndex = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0))
+        .toInt()
+        .coerceIn(0, units.lastIndex)
+    val value = bytes / Math.pow(1024.0, unitIndex.toDouble())
+    return String.format("%.1f %s", value, units[unitIndex])
 }
 
 @Composable
@@ -1167,13 +1305,16 @@ private fun AddWebDavDialog(
 @Composable
 private fun AddSmbShareDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, String?, String?, String?) -> Unit
+    onConfirm: (String, String, String, String?, String?, String?, (Boolean, String) -> Unit) -> Unit,
+    onSaved: () -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
     var share by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isTesting by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1198,6 +1339,10 @@ private fun AddSmbShareDialog(
                     TvInputRow("Password", password, "Optional") { password = it }
                 }
 
+                errorMessage?.let {
+                    Text(it, color = AccentRose, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -1211,8 +1356,20 @@ private fun AddSmbShareDialog(
 
                     FocusableCard(
                         onClick = {
-                            if (name.isNotBlank() && host.isNotBlank() && share.isNotBlank()) {
-                                onConfirm(name, host, share, username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }, null)
+                            if (!isTesting && name.isNotBlank() && host.isNotBlank() && share.isNotBlank()) {
+                                isTesting = true
+                                errorMessage = null
+                                onConfirm(
+                                    name,
+                                    host,
+                                    share,
+                                    username.takeIf { it.isNotBlank() },
+                                    password.takeIf { it.isNotBlank() },
+                                    null
+                                ) { success, message ->
+                                    isTesting = false
+                                    if (success) onSaved() else errorMessage = message
+                                }
                             }
                         },
                         containerColor = AccentPrimary,
@@ -1220,7 +1377,7 @@ private fun AddSmbShareDialog(
                         contentColor = Color(0xFF0D0F0E),
                         focusedContentColor = Color(0xFF0D0F0E)
                     ) {
-                        Text("Save Share", color = Color(0xFF0D0F0E), fontSize = 12.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
+                        Text(if (isTesting) "Testing..." else "Connect & Save", color = Color(0xFF0D0F0E), fontSize = 12.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
                     }
                 }
             }

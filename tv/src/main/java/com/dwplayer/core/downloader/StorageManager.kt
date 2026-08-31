@@ -3,6 +3,7 @@ package com.dwplayer.core.downloader
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
+import android.media.MediaMetadataRetriever
 import com.dwplayer.data.models.StorageInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -85,13 +86,17 @@ class StorageManager @Inject constructor(
             }
             .map { file ->
                 val ext = file.extension.lowercase()
+                val metadata = readVideoMetadata(file)
                 com.dwplayer.data.models.LocalArchiveFile(
                     name = file.name,
                     path = file.absolutePath,
                     sizeBytes = file.length(),
                     sizeFormatted = formatBytes(file.length()),
                     lastModified = file.lastModified(),
-                    extension = ext.uppercase()
+                    extension = ext.uppercase(),
+                    durationMs = metadata.durationMs,
+                    videoWidth = metadata.width,
+                    videoHeight = metadata.height
                 )
             }
             .sortedByDescending { it.lastModified }
@@ -117,4 +122,32 @@ class StorageManager @Inject constructor(
         val index = digitGroups.coerceIn(0, units.size - 1)
         return String.format("%.1f %s", bytes / Math.pow(1024.0, index.toDouble()), units[index])
     }
+
+    private fun readVideoMetadata(file: File): VideoMetadata {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.absolutePath)
+            VideoMetadata(
+                durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                    ?.toLongOrNull()
+                    ?: 0L,
+                width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    ?.toIntOrNull()
+                    ?: 0,
+                height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    ?.toIntOrNull()
+                    ?: 0
+            )
+        } catch (_: Exception) {
+            VideoMetadata()
+        } finally {
+            runCatching { retriever.release() }
+        }
+    }
+
+    private data class VideoMetadata(
+        val durationMs: Long = 0L,
+        val width: Int = 0,
+        val height: Int = 0
+    )
 }

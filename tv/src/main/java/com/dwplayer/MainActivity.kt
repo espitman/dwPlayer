@@ -6,8 +6,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -56,9 +59,15 @@ class MainActivity : ComponentActivity() {
         startBackgroundServices()
         requestStoragePermissions()
 
+        val installedVersion = runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        }.getOrNull() ?: "Unknown"
+
         setContent {
             var currentDestination by remember { mutableStateOf(NavDestination.HOME) }
+            val navigationHistory = remember { mutableStateListOf(NavDestination.HOME) }
             var showAddDialog by remember { mutableStateOf(false) }
+            var lastHomeBackPressAt by remember { mutableLongStateOf(0L) }
 
             val tasks by viewModel.tasks.collectAsState()
             val playlists by viewModel.playlists.collectAsState()
@@ -73,6 +82,7 @@ class MainActivity : ComponentActivity() {
             val currentSmbPath by viewModel.currentSmbPath.collectAsState()
             val smbItems by viewModel.smbItems.collectAsState()
             val isSmbLoading by viewModel.isSmbLoading.collectAsState()
+            val smbError by viewModel.smbError.collectAsState()
 
             val webDavServers by viewModel.webDavServers.collectAsState()
             val currentWebDavServer by viewModel.currentWebDavServer.collectAsState()
@@ -81,8 +91,68 @@ class MainActivity : ComponentActivity() {
             val isWebDavLoading by viewModel.isWebDavLoading.collectAsState()
             val webDavError by viewModel.webDavError.collectAsState()
             val discoveredServers by viewModel.discoveredServers.collectAsState()
+            val subtitleSettings by viewModel.subtitleSettings.collectAsState()
 
             val sidebarFocusRequester = remember { FocusRequester() }
+
+            fun navigateTo(destination: NavDestination) {
+                if (destination == NavDestination.ADD || destination == currentDestination) return
+
+                lastHomeBackPressAt = 0L
+                if (destination == NavDestination.HOME) {
+                    navigationHistory.clear()
+                    navigationHistory.add(NavDestination.HOME)
+                } else {
+                    navigationHistory.add(destination)
+                }
+                currentDestination = destination
+            }
+
+            BackHandler {
+                when {
+                    showAddDialog -> {
+                        showAddDialog = false
+                        lastHomeBackPressAt = 0L
+                    }
+
+                    currentDestination == NavDestination.SMB && currentSmbShare != null -> {
+                        viewModel.navigateSmbUp()
+                        lastHomeBackPressAt = 0L
+                    }
+
+                    currentDestination == NavDestination.SMB && currentWebDavServer != null -> {
+                        viewModel.navigateWebDavUp()
+                        lastHomeBackPressAt = 0L
+                    }
+
+                    navigationHistory.size > 1 -> {
+                        navigationHistory.removeAt(navigationHistory.lastIndex)
+                        currentDestination = navigationHistory.last()
+                        lastHomeBackPressAt = 0L
+                    }
+
+                    currentDestination != NavDestination.HOME -> {
+                        navigationHistory.clear()
+                        navigationHistory.add(NavDestination.HOME)
+                        currentDestination = NavDestination.HOME
+                        lastHomeBackPressAt = 0L
+                    }
+
+                    else -> {
+                        val now = SystemClock.elapsedRealtime()
+                        if (now - lastHomeBackPressAt <= HOME_EXIT_CONFIRMATION_WINDOW_MS) {
+                            finish()
+                        } else {
+                            lastHomeBackPressAt = now
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Press Back again to exit",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            }
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 DwPlayerTheme {
@@ -95,8 +165,11 @@ class MainActivity : ComponentActivity() {
                         Row(modifier = Modifier.fillMaxSize()) {
                             TvSidebar(
                                 currentDestination = currentDestination,
-                                onNavigate = { currentDestination = it },
-                                onAddClicked = { showAddDialog = true },
+                                onNavigate = { navigateTo(it) },
+                                onAddClicked = {
+                                    lastHomeBackPressAt = 0L
+                                    showAddDialog = true
+                                },
                                 firstItemFocusRequester = sidebarFocusRequester
                             )
 
@@ -125,15 +198,20 @@ class MainActivity : ComponentActivity() {
                                                 activeTasks = tasks.filter { it.status == "ACTIVE" || it.status == "PENDING" },
                                                 liveProgress = liveProgress,
                                                 smbShares = smbShares,
+                                                webDavServers = webDavServers,
+                                                archiveFiles = archiveFiles,
                                                 storageInfo = storageInfo,
                                                 companionUrl = companionUrl,
                                                 onPlayMedia = { uri, title, isSmb ->
                                                     playMedia(uri, title, isSmb)
                                                 },
-                                                onNavigateDownloads = { currentDestination = NavDestination.DOWNLOADS },
-                                                onNavigateSmb = { currentDestination = NavDestination.SMB },
-                                                onNavigateArchive = { currentDestination = NavDestination.ARCHIVE },
-                                                onOpenAddDialog = { showAddDialog = true },
+                                                onNavigateDownloads = { navigateTo(NavDestination.DOWNLOADS) },
+                                                onNavigateSmb = { navigateTo(NavDestination.SMB) },
+                                                onNavigateArchive = { navigateTo(NavDestination.ARCHIVE) },
+                                                onOpenAddDialog = {
+                                                    lastHomeBackPressAt = 0L
+                                                    showAddDialog = true
+                                                },
                                                 onClearHistory = { viewModel.clearPlaybackHistory() }
                                             )
                                         }
@@ -151,7 +229,10 @@ class MainActivity : ComponentActivity() {
                                                 onDeleteTask = { id, delFile -> viewModel.deleteDownload(id, delFile) },
                                                 onPauseAll = { viewModel.pauseAll() },
                                                 onResumeAll = { viewModel.resumeAll() },
-                                                onOpenAddDialog = { showAddDialog = true },
+                                                onOpenAddDialog = {
+                                                    lastHomeBackPressAt = 0L
+                                                    showAddDialog = true
+                                                },
                                                 onAddToPlaylist = { playlistId, title, uri ->
                                                     viewModel.addPlaylistItem(playlistId, title, uri)
                                                     android.widget.Toast.makeText(this@MainActivity, "Added to Series: $title", android.widget.Toast.LENGTH_SHORT).show()
@@ -191,6 +272,7 @@ class MainActivity : ComponentActivity() {
                                             MediaArchiveScreen(
                                                 files = archiveFiles,
                                                 storageInfo = storageInfo,
+                                                playbackHistory = historyList,
                                                 playlists = playlists,
                                                 onPlayFile = { file ->
                                                     playMedia(file.path, file.name, isSmb = false)
@@ -217,6 +299,7 @@ class MainActivity : ComponentActivity() {
                                                 currentSmbPath = currentSmbPath,
                                                 smbItems = smbItems,
                                                 isSmbLoading = isSmbLoading,
+                                                smbError = smbError,
                                                 onSelectSmbShare = { viewModel.selectSmbShare(it) },
                                                 onNavigateSmbPath = { viewModel.browseSmbPath(it) },
                                                 onBackSmbPath = { viewModel.navigateSmbUp() },
@@ -226,8 +309,8 @@ class MainActivity : ComponentActivity() {
                                                 onDownloadSmbFile = { share, item ->
                                                     viewModel.downloadSmbFile(share, item)
                                                 },
-                                                onAddSmbShare = { name, host, shareName, user, pass, domain ->
-                                                    viewModel.addSmbShare(name, host, shareName, user, pass, domain)
+                                                onAddSmbShare = { name, host, shareName, user, pass, domain, cb ->
+                                                    viewModel.addSmbShare(name, host, shareName, user, pass, domain, cb)
                                                 },
                                                 onDeleteSmbShare = { viewModel.deleteSmbShare(it) },
 
@@ -259,7 +342,11 @@ class MainActivity : ComponentActivity() {
                                         NavDestination.SETTINGS -> {
                                             SettingsScreen(
                                                 companionUrl = companionUrl,
-                                                storageInfo = storageInfo
+                                                storageInfo = storageInfo,
+                                                subtitleSettings = subtitleSettings,
+                                                appVersion = installedVersion,
+                                                deviceName = Build.MODEL,
+                                                androidVersion = Build.VERSION.RELEASE
                                             )
                                         }
                                         NavDestination.ADD -> {}
@@ -375,5 +462,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    private companion object {
+        const val HOME_EXIT_CONFIRMATION_WINDOW_MS = 2_000L
     }
 }

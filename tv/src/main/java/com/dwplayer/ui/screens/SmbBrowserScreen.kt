@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Icon
 import androidx.tv.material3.Text
+import androidx.tv.material3.LocalContentColor
 import com.dwplayer.data.entities.SmbShareEntity
 import com.dwplayer.data.models.SmbItem
 import com.dwplayer.ui.components.FocusableCard
@@ -77,15 +78,17 @@ fun SmbBrowserScreen(
                 FocusableCard(
                     onClick = { showAddShareDialog = true },
                     containerColor = AccentPrimary,
-                    focusedContainerColor = AccentSecondary
+                    focusedContainerColor = AccentSecondary,
+                    contentColor = BgDark,
+                    focusedContentColor = BgDark
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Text("Add New Server", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Add, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
+                        Text("Add New Server", color = LocalContentColor.current, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             } else {
@@ -119,13 +122,16 @@ fun SmbBrowserScreen(
                         Text("No SMB shares added yet", color = TextSecondary, fontSize = 14.sp)
                         FocusableCard(
                             onClick = { showAddShareDialog = true },
-                            containerColor = AccentPrimary
+                            containerColor = AccentPrimary,
+                            focusedContainerColor = AccentSecondary,
+                            contentColor = BgDark,
+                            focusedContentColor = BgDark
                         ) {
                             Box(
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Add SMB Share", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Add SMB Share", color = LocalContentColor.current, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -304,6 +310,8 @@ private fun SmbItemRow(
                     onClick = onDownload,
                     containerColor = Color.White.copy(alpha = 0.05f),
                     focusedContainerColor = AccentPrimary,
+                    contentColor = TextPrimary,
+                    focusedContentColor = BgDark,
                     modifier = Modifier.height(32.dp)
                 ) {
                     Row(
@@ -311,8 +319,8 @@ private fun SmbItemRow(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(Icons.Default.Download, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        Text("Download to TV", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Download, null, tint = LocalContentColor.current, modifier = Modifier.size(14.dp))
+                        Text("Download to TV", color = LocalContentColor.current, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -367,10 +375,13 @@ private fun AddSmbShareDialog(
                             }
                         },
                         modifier = Modifier.weight(1f).height(44.dp),
-                        containerColor = AccentPrimary
+                        containerColor = AccentPrimary,
+                        focusedContainerColor = AccentSecondary,
+                        contentColor = BgDark,
+                        focusedContentColor = BgDark
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Save Server", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Save Server", color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 

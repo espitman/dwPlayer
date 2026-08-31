@@ -20,6 +20,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
 import com.dwplayer.data.models.StorageInfo
+import com.dwplayer.core.player.SubtitleSettings
 import com.dwplayer.ui.components.FocusableCard
 import com.dwplayer.ui.components.QrCodeView
 import com.dwplayer.ui.theme.*
@@ -28,9 +29,18 @@ import com.dwplayer.ui.theme.*
 fun SettingsScreen(
     companionUrl: String,
     storageInfo: StorageInfo,
+    subtitleSettings: SubtitleSettings,
+    appVersion: String,
+    deviceName: String,
+    androidVersion: String,
     modifier: Modifier = Modifier
 ) {
     var showQrDialog by remember { mutableStateOf(false) }
+    var activeDetails by remember { mutableStateOf<SettingsDetails?>(null) }
+
+    activeDetails?.let { details ->
+        SettingsDetailsDialog(details = details, onDismiss = { activeDetails = null })
+    }
 
     if (showQrDialog) {
         Dialog(
@@ -136,7 +146,7 @@ fun SettingsScreen(
                 SettingTile(
                     title = "Web remote",
                     description = "Control playback and send links from any device on this network.",
-                    value = if (companionUrl.isNotBlank()) "${companionUrl.removePrefix("http://").removePrefix("https://").substringBefore("/")} • ACTIVE" else "OFFLINE",
+                    value = if (companionUrl.isNotBlank()) "${companionUrl.removePrefix("http://").removePrefix("https://").substringBefore("/")} • READY" else "OFFLINE",
                     onClick = { showQrDialog = true },
                     modifier = Modifier.weight(1f)
                 )
@@ -144,9 +154,22 @@ fun SettingsScreen(
                 // 2. Playback
                 SettingTile(
                     title = "Playback",
-                    description = "Hardware decoding, subtitle defaults and resume behavior.",
-                    value = "HARDWARE • AUTO RESUME",
-                    onClick = {},
+                    description = "Current subtitle defaults and resume behavior used by the player.",
+                    value = "${subtitleSettings.font.displayName.uppercase()} • ${subtitleSettings.size.displayName.uppercase()}",
+                    onClick = {
+                        activeDetails = SettingsDetails(
+                            title = "Playback",
+                            rows = listOf(
+                                "Decoder" to "Media3 automatic selection",
+                                "Resume" to "Saved every 5 seconds",
+                                "Subtitle font" to subtitleSettings.font.displayName,
+                                "Subtitle size" to subtitleSettings.size.displayName,
+                                "Subtitle color" to subtitleSettings.color.displayName,
+                                "Subtitle style" to subtitleSettings.backgroundStyle.displayName,
+                                "Subtitle position" to subtitleSettings.position.displayName
+                            )
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -160,7 +183,17 @@ fun SettingsScreen(
                     title = "Storage",
                     description = "Manage downloaded and archived media on this TV.",
                     value = "${storageInfo.freeSpace} FREE",
-                    onClick = {},
+                    onClick = {
+                        activeDetails = SettingsDetails(
+                            title = "Storage",
+                            rows = listOf(
+                                "Location" to storageInfo.path,
+                                "Free" to storageInfo.freeSpace,
+                                "Total" to storageInfo.totalSpace,
+                                "Used" to "${storageInfo.usedPercent}%"
+                            )
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
 
@@ -168,10 +201,80 @@ fun SettingsScreen(
                 SettingTile(
                     title = "About dwPlayer",
                     description = "Build information and Android TV permissions.",
-                    value = "VERSION 1.0 • ANDROID TV",
-                    onClick = {},
+                    value = "VERSION $appVersion • ANDROID $androidVersion",
+                    onClick = {
+                        activeDetails = SettingsDetails(
+                            title = "About dwPlayer",
+                            rows = listOf(
+                                "Version" to appVersion,
+                                "Device" to deviceName,
+                                "Android" to androidVersion,
+                                "Platform" to "Android TV"
+                            )
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+    }
+}
+
+private data class SettingsDetails(
+    val title: String,
+    val rows: List<Pair<String, String>>
+)
+
+@Composable
+private fun SettingsDetailsDialog(
+    details: SettingsDetails,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(540.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(SurfaceDark)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+                .padding(26.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(details.title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Black)
+                details.rows.forEach { (label, value) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(label, color = TextSecondary, fontSize = 12.sp, modifier = Modifier.width(120.dp))
+                        Text(
+                            value,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                FocusableCard(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    containerColor = AccentPrimary,
+                    focusedContainerColor = AccentSecondary,
+                    contentColor = BgDark,
+                    focusedContentColor = BgDark
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Done", color = BgDark, fontSize = 13.sp, fontWeight = FontWeight.Black)
+                    }
+                }
             }
         }
     }

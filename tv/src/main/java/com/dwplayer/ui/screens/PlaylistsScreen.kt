@@ -63,8 +63,8 @@ fun PlaylistsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 24.dp, end = 36.dp, top = 12.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .padding(start = 42.dp, end = 42.dp, top = 24.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // 1. Header
         Row(
@@ -84,9 +84,10 @@ fun PlaylistsScreen(
                 Text(
                     text = "Playlists & Series",
                     color = Color.White,
-                    fontSize = 36.sp,
+                    fontSize = 48.sp,
+                    lineHeight = 52.sp,
                     fontWeight = FontWeight.Black,
-                    letterSpacing = (-1).sp
+                    letterSpacing = (-2).sp
                 )
                 Text(
                     text = "Organize movie collections, series sequences and video queues.",
@@ -97,18 +98,22 @@ fun PlaylistsScreen(
 
             FocusableCard(
                 onClick = { showCreateDialog = true },
+                modifier = Modifier.height(54.dp),
+                shape = RoundedCornerShape(16.dp),
                 containerColor = AccentPrimary,
                 focusedContainerColor = AccentSecondary,
                 contentColor = Color(0xFF0D0F0E),
                 focusedContentColor = Color(0xFF0D0F0E)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 24.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Add, null, tint = Color(0xFF0D0F0E), modifier = Modifier.size(18.dp))
-                    Text("New Series", color = Color(0xFF0D0F0E), fontSize = 13.sp, fontWeight = FontWeight.Black)
+                    Text("New Series", color = Color(0xFF0D0F0E), fontSize = 15.sp, fontWeight = FontWeight.Black)
                 }
             }
         }

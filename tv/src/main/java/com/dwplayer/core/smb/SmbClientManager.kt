@@ -73,12 +73,11 @@ class SmbClientManager @Inject constructor() {
         }
     }
 
-    suspend fun listDirectory(shareEntity: SmbShareEntity, path: String): List<SmbItem> = withContext(Dispatchers.IO) {
-        val diskShare = getDiskShare(shareEntity)
-        val normalizedPath = path.replace("/", "\\").trim('\\')
-        val list = mutableListOf<SmbItem>()
-
+    suspend fun listDirectoryResult(shareEntity: SmbShareEntity, path: String): Result<List<SmbItem>> = withContext(Dispatchers.IO) {
         try {
+            val diskShare = getDiskShare(shareEntity)
+            val normalizedPath = path.replace("/", "\\").trim('\\')
+            val list = mutableListOf<SmbItem>()
             val fileList = diskShare.list(normalizedPath)
             for (f in fileList) {
                 val fileName = f.fileName
@@ -98,11 +97,15 @@ class SmbClientManager @Inject constructor() {
                     )
                 )
             }
+            Result.success(list.sortedWith(compareByDescending<SmbItem> { it.isDirectory }.thenBy { it.name.lowercase() }))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to list SMB directory $path", e)
+            Result.failure(e)
         }
-        list.sortedWith(compareByDescending<SmbItem> { it.isDirectory }.thenBy { it.name.lowercase() })
     }
+
+    suspend fun listDirectory(shareEntity: SmbShareEntity, path: String): List<SmbItem> =
+        listDirectoryResult(shareEntity, path).getOrDefault(emptyList())
 
     fun openFileForStreaming(shareEntity: SmbShareEntity, path: String): SmbFile {
         val diskShare = getDiskShare(shareEntity)

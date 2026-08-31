@@ -32,6 +32,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
 import com.dwplayer.R
 import com.dwplayer.data.entities.PlaylistWithItems
+import com.dwplayer.data.entities.PlaybackHistoryEntity
 import com.dwplayer.data.models.LocalArchiveFile
 import com.dwplayer.data.models.StorageInfo
 import com.dwplayer.ui.components.AddToPlaylistDialog
@@ -44,6 +45,7 @@ import java.util.*
 fun MediaArchiveScreen(
     files: List<LocalArchiveFile>,
     storageInfo: StorageInfo,
+    playbackHistory: List<PlaybackHistoryEntity> = emptyList(),
     playlists: List<PlaylistWithItems> = emptyList(),
     onPlayFile: (LocalArchiveFile) -> Unit,
     onDeleteFile: (LocalArchiveFile) -> Unit,
@@ -109,22 +111,33 @@ fun MediaArchiveScreen(
                 )
             }
 
-            FocusableCard(
-                onClick = onRefresh,
-                modifier = Modifier.height(44.dp),
-                shape = RoundedCornerShape(14.dp),
-                containerColor = Color.White.copy(alpha = 0.055f),
-                focusedContainerColor = CardDark,
-                borderColor = Color.White.copy(alpha = 0.12f),
-                scale = 1.035f
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxHeight().padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Text(
+                    "${files.size} file${if (files.size == 1) "" else "s"} · ${storageInfo.freeSpace} free",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                FocusableCard(
+                    onClick = onRefresh,
+                    modifier = Modifier.height(44.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    containerColor = Color.White.copy(alpha = 0.055f),
+                    focusedContainerColor = CardDark,
+                    borderColor = Color.White.copy(alpha = 0.12f),
+                    scale = 1.035f
                 ) {
-                    Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Text("Refresh", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxHeight().padding(horizontal = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Text("Refresh", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -155,6 +168,7 @@ fun MediaArchiveScreen(
                         items(files, key = { it.path }) { file ->
                             ArchiveFileRow(
                                 file = file,
+                                history = playbackHistory.forLocalFile(file),
                                 artworkRes = libraryArtwork(file.name),
                                 isSelected = activeFile?.path == file.path,
                                 onClick = { selectedFile = file },
@@ -167,6 +181,7 @@ fun MediaArchiveScreen(
                 activeFile?.let { file ->
                     LibraryInfoPanel(
                         file = file,
+                        history = playbackHistory.forLocalFile(file),
                         artworkRes = libraryArtwork(file.name),
                         onPlay = { onPlayFile(file) },
                         modifier = Modifier.weight(0.56f).fillMaxHeight()
@@ -259,10 +274,13 @@ private fun LibraryEmptyState(modifier: Modifier = Modifier) {
 @Composable
 private fun LibraryInfoPanel(
     file: LocalArchiveFile,
+    history: PlaybackHistoryEntity?,
     artworkRes: Int,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val progress = history.progressFraction()
+    val durationMs = file.durationMs.takeIf { it > 0L } ?: history?.durationMs ?: 0L
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(22.dp))
@@ -294,7 +312,7 @@ private fun LibraryInfoPanel(
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                text = "Saved locally and available without a network connection.",
+                text = "Saved ${file.lastModified.asLibraryDate()} and available without a network connection.",
                 color = TextSecondary,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
@@ -305,9 +323,10 @@ private fun LibraryInfoPanel(
             Spacer(Modifier.height(5.dp))
             SpecRow(
                 "Quality",
-                if (file.extension.equals("avi", true)) "DVD · 576p" else "LOCAL · READY"
+                file.videoQualityLabel()
             )
             SpecRow("Storage", file.sizeFormatted)
+            SpecRow("Duration", durationMs.asLibraryDuration())
 
             Spacer(Modifier.weight(1f))
 
@@ -330,7 +349,7 @@ private fun LibraryInfoPanel(
                 ) {
                     Icon(Icons.Default.PlayArrow, null, tint = BgDark, modifier = Modifier.size(19.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Resume", color = BgDark, fontSize = 13.sp, fontWeight = FontWeight.Black)
+                    Text(if (progress > 0f) "Resume ${(progress * 100).toInt()}%" else "Play", color = BgDark, fontSize = 13.sp, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -362,13 +381,6 @@ private fun libraryDisplayTitle(fileName: String): String {
         .ifBlank { fileName.substringBeforeLast('.', fileName) }
 }
 
-private fun libraryDuration(fileName: String): String = when (fileName.lowercase()) {
-    "khabe.talkh.1382.dvdrip.avi" -> "02:06:28"
-    "2.mp4" -> "00:10"
-    "1.mp4" -> "00:03"
-    else -> "READY"
-}
-
 @Composable
 private fun SpecRow(label: String, value: String) {
     Row(
@@ -387,11 +399,14 @@ private fun SpecRow(label: String, value: String) {
 @Composable
 private fun ArchiveFileRow(
     file: LocalArchiveFile,
+    history: PlaybackHistoryEntity?,
     artworkRes: Int,
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val durationMs = file.durationMs.takeIf { it > 0L } ?: history?.durationMs ?: 0L
+    val progress = history.progressFraction()
     FocusableCard(
         onClick = onClick,
         onLongClick = onLongClick,
@@ -453,7 +468,7 @@ private fun ArchiveFileRow(
                         )
                         Text("•", color = TextTertiary, fontSize = 10.sp)
                         Text(
-                            text = libraryDuration(file.name),
+                            text = durationMs.asLibraryDuration(),
                             color = TextSecondary,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace
@@ -469,13 +484,51 @@ private fun ArchiveFileRow(
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 Text(
-                    if (file.name.equals("Khabe.Talkh.1382.DVDRip.avi", true)) "43% watched" else "Ready",
+                    when {
+                        history?.isCompleted == true -> "Watched"
+                        progress > 0f -> "${(progress * 100).toInt()}% watched"
+                        else -> "Ready"
+                    },
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
             }
         }
     }
+}
+
+private fun List<PlaybackHistoryEntity>.forLocalFile(file: LocalArchiveFile): PlaybackHistoryEntity? {
+    val targetPath = file.path.removePrefix("file://")
+    return firstOrNull { it.mediaUri.removePrefix("file://") == targetPath }
+}
+
+private fun PlaybackHistoryEntity?.progressFraction(): Float {
+    if (this == null || durationMs <= 0L || isCompleted) return 0f
+    return (lastPositionMs.toFloat() / durationMs).coerceIn(0f, 0.99f)
+}
+
+private fun LocalArchiveFile.videoQualityLabel(): String = when {
+    videoHeight >= 2160 -> "4K · ${videoWidth}×${videoHeight}"
+    videoHeight >= 1440 -> "QHD · ${videoWidth}×${videoHeight}"
+    videoHeight >= 1080 -> "FULL HD · ${videoWidth}×${videoHeight}"
+    videoHeight >= 720 -> "HD · ${videoWidth}×${videoHeight}"
+    videoHeight > 0 -> "SD · ${videoWidth}×${videoHeight}"
+    else -> "$extension · LOCAL"
+}
+
+private fun Long.asLibraryDuration(): String {
+    if (this <= 0L) return "Unknown"
+    val totalSeconds = this / 1_000L
+    val hours = totalSeconds / 3_600L
+    val minutes = (totalSeconds % 3_600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0L) "%02d:%02d:%02d".format(hours, minutes, seconds)
+    else "%02d:%02d".format(minutes, seconds)
+}
+
+private fun Long.asLibraryDate(): String {
+    if (this <= 0L) return "on this TV"
+    return SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(this))
 }
 
 @Composable

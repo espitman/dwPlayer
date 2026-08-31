@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dwplayer.core.downloader.DwDownloadManager
 import com.dwplayer.core.downloader.StorageManager
 import com.dwplayer.core.smb.SmbClientManager
+import com.dwplayer.core.player.SubtitlePreferencesManager
 import com.dwplayer.data.daos.DownloadTaskDao
 import com.dwplayer.data.daos.PlaybackHistoryDao
 import com.dwplayer.data.daos.SmbShareDao
@@ -19,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.UUID
@@ -35,7 +37,8 @@ class MainViewModel @Inject constructor(
     private val networkDiscoveryManager: com.dwplayer.core.discovery.NetworkDiscoveryManager,
     val downloadManager: DwDownloadManager,
     private val storageManager: StorageManager,
-    private val smbClientManager: SmbClientManager
+    private val smbClientManager: SmbClientManager,
+    private val subtitlePreferencesManager: SubtitlePreferencesManager
 ) : ViewModel() {
 
     val tasks: StateFlow<List<DownloadTaskEntity>> = downloadTaskDao.getAllTasks()
@@ -56,6 +59,8 @@ class MainViewModel @Inject constructor(
 
     val playbackHistory: StateFlow<List<PlaybackHistoryEntity>> = playbackHistoryDao.getAllHistory()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val subtitleSettings = subtitlePreferencesManager.settings
 
     private val _storageInfo = MutableStateFlow(storageManager.getStorageInfo())
     val storageInfo: StateFlow<StorageInfo> = _storageInfo.asStateFlow()
@@ -78,6 +83,9 @@ class MainViewModel @Inject constructor(
 
     private val _isSmbLoading = MutableStateFlow(false)
     val isSmbLoading: StateFlow<Boolean> = _isSmbLoading.asStateFlow()
+
+    private val _smbError = MutableStateFlow<String?>(null)
+    val smbError: StateFlow<String?> = _smbError.asStateFlow()
 
     // WebDAV Explorer State
     private val _currentWebDavServer = MutableStateFlow<com.dwplayer.data.entities.WebDavServerEntity?>(null)
@@ -230,8 +238,23 @@ class MainViewModel @Inject constructor(
     }
 
     // SMB Methods
-    fun addSmbShare(name: String, host: String, shareName: String, user: String?, pass: String?, domain: String?) {
+    fun addSmbShare(
+        name: String,
+        host: String,
+        shareName: String,
+        user: String?,
+        pass: String?,
+        domain: String?,
+        onResult: (Boolean, String) -> Unit
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
+            val testResult = smbClientManager.testConnection(host, shareName, user, pass, domain)
+            if (testResult.isFailure) {
+                withContext(Dispatchers.Main) {
+                    onResult(false, testResult.exceptionOrNull()?.message ?: "Connection failed")
+                }
+                return@launch
+            }
             val entity = SmbShareEntity(
                 id = UUID.randomUUID().toString(),
                 name = name,
@@ -242,6 +265,7 @@ class MainViewModel @Inject constructor(
                 domain = domain
             )
             smbShareDao.insertShare(entity)
+            withContext(Dispatchers.Main) { onResult(true, "Share added successfully") }
         }
     }
 
@@ -251,6 +275,7 @@ class MainViewModel @Inject constructor(
             if (_currentSmbShare.value?.id == shareId) {
                 _currentSmbShare.value = null
                 _smbItems.value = emptyList()
+                _smbError.value = null
             }
         }
     }
@@ -258,6 +283,7 @@ class MainViewModel @Inject constructor(
     fun selectSmbShare(share: SmbShareEntity) {
         _currentSmbShare.value = share
         _currentSmbPath.value = ""
+        _smbError.value = null
         browseSmbFolder(share, "")
     }
 
@@ -272,6 +298,7 @@ class MainViewModel @Inject constructor(
         if (path.isBlank()) {
             _currentSmbShare.value = null
             _smbItems.value = emptyList()
+            _smbError.value = null
         } else {
             val parent = path.substringBeforeLast("/", "")
             browseSmbPath(parent)
@@ -281,10 +308,20 @@ class MainViewModel @Inject constructor(
     private fun browseSmbFolder(share: SmbShareEntity, path: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _isSmbLoading.value = true
-            val items = smbClientManager.listDirectory(share, path)
-            _smbItems.value = items
+            _smbError.value = null
+            val result = smbClientManager.listDirectoryResult(share, path)
+            if (result.isSuccess) {
+                _smbItems.value = result.getOrDefault(emptyList())
+            } else {
+                _smbItems.value = emptyList()
+                _smbError.value = result.exceptionOrNull()?.message ?: "Failed to open SMB folder"
+            }
             _isSmbLoading.value = false
         }
+    }
+
+    fun updateSubtitleSettings(settings: com.dwplayer.core.player.SubtitleSettings) {
+        subtitlePreferencesManager.updateSettings(settings)
     }
 
     fun downloadSmbFile(share: SmbShareEntity, item: SmbItem) {
@@ -311,9 +348,11 @@ class MainViewModel @Inject constructor(
                     password = password?.takeIf { it.isNotBlank() }
                 )
                 webDavServerDao.insertServer(entity)
-                onResult(true, "Server added successfully")
+                withContext(Dispatchers.Main) { onResult(true, "Server added successfully") }
             } else {
-                onResult(false, testResult.exceptionOrNull()?.message ?: "Connection failed")
+                withContext(Dispatchers.Main) {
+                    onResult(false, testResult.exceptionOrNull()?.message ?: "Connection failed")
+                }
             }
         }
     }

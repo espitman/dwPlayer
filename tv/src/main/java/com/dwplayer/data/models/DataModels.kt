@@ -107,7 +107,10 @@ data class LocalArchiveFile(
     val sizeBytes: Long,
     val sizeFormatted: String,
     val lastModified: Long,
-    val extension: String
+    val extension: String,
+    val durationMs: Long = 0L,
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0
 )
 
 @Serializable

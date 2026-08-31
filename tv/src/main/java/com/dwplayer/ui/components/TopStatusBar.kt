@@ -83,7 +83,7 @@ fun TopStatusBar(
                         .background(if (isConnected) Color.White else Color(0xFF5A635E))
                 )
                 Text(
-                    text = if (isConnected) "Web remote connected" else "Web remote offline",
+                    text = if (isConnected) "Web remote ready" else "Web remote offline",
                     color = Color(0xFFA8B2AB),
                     fontSize = 13.sp,
                     fontFamily = DwBodyFont,

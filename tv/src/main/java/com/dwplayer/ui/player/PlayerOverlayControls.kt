@@ -33,6 +33,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.Icon
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.dwplayer.core.player.*
@@ -366,6 +367,69 @@ fun PlayerOverlayControls(
 }
 
 @Composable
+fun QuickSeekFeedbackOverlay(
+    seconds: Int?,
+    eventId: Long,
+    modifier: Modifier = Modifier
+) {
+    val isForward = (seconds ?: 0) > 0
+
+    key(eventId) {
+        AnimatedVisibility(
+            visible = seconds != null,
+            modifier = modifier.fillMaxSize(),
+            enter = fadeIn() + scaleIn(initialScale = 0.82f),
+            exit = fadeOut() + scaleOut(targetScale = 0.90f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 112.dp),
+                contentAlignment = if (isForward) Alignment.CenterEnd else Alignment.CenterStart
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(156.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(BgDark.copy(alpha = 0.88f))
+                        .border(
+                            width = 2.dp,
+                            color = AccentPrimary.copy(alpha = 0.88f),
+                            shape = RoundedCornerShape(32.dp)
+                        )
+                        .padding(horizontal = 22.dp, vertical = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isForward) Icons.Default.Forward10 else Icons.Default.Replay10,
+                        contentDescription = if (isForward) "Forward 10 seconds" else "Rewind 10 seconds",
+                        tint = AccentPrimary,
+                        modifier = Modifier.size(42.dp)
+                    )
+                    Text(
+                        text = if (isForward) "+10s" else "−10s",
+                        color = Color.White,
+                        fontSize = 28.sp,
+                        lineHeight = 30.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = if (isForward) "FORWARD" else "REWIND",
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        lineHeight = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.4.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun TvSeekBar(
     progress: Float,
     bufferedProgress: Float,
@@ -566,10 +630,13 @@ private fun TrackSelectionDialog(
                     FocusableCard(
                         onClick = { onSelect(null) },
                         containerColor = if (selectedIndex == -1) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                        focusedContainerColor = if (selectedIndex == -1) AccentSecondary else CardDark,
+                        contentColor = if (selectedIndex == -1) BgDark else TextPrimary,
+                        focusedContentColor = if (selectedIndex == -1) BgDark else TextPrimary,
                         modifier = Modifier.fillMaxWidth().height(42.dp)
                     ) {
                         Box(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
-                            Text("Off / None", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Off / None", color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -579,10 +646,13 @@ private fun TrackSelectionDialog(
                     FocusableCard(
                         onClick = { onSelect(track) },
                         containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                        focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                        contentColor = if (isSelected) BgDark else TextPrimary,
+                        focusedContentColor = if (isSelected) BgDark else TextPrimary,
                         modifier = Modifier.fillMaxWidth().height(42.dp)
                     ) {
                         Box(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
-                            Text(track.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(track.label, color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -620,10 +690,13 @@ private fun <T> OptionDialog(
                     FocusableCard(
                         onClick = { onSelect(opt) },
                         containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                        focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                        contentColor = if (isSelected) BgDark else TextPrimary,
+                        focusedContentColor = if (isSelected) BgDark else TextPrimary,
                         modifier = Modifier.fillMaxWidth().height(42.dp)
                     ) {
                         Box(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
-                            Text(getLabel(opt), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(getLabel(opt), color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

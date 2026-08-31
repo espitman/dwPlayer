@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
+import androidx.tv.material3.LocalContentColor
 import com.dwplayer.R
 import com.dwplayer.core.player.*
 import com.dwplayer.ui.components.FocusableCard
@@ -175,7 +176,7 @@ fun SubtitleSettingsDialog(
                         modifier = Modifier
                             .width(220.dp)
                             .fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         SubtitleSettingTab.values().forEachIndexed { index, tab ->
                             val isSelected = tab == activeTab
@@ -183,9 +184,11 @@ fun SubtitleSettingsDialog(
                                 onClick = { activeTab = tab },
                                 containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
                                 focusedContainerColor = if (isSelected) AccentSecondary else AccentPrimary.copy(alpha = 0.8f),
+                                contentColor = if (isSelected) BgDark else TextSecondary,
+                                focusedContentColor = BgDark,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(44.dp)
+                                    .height(38.dp)
                                     .then(if (index == 0) Modifier.focusRequester(focusRequester) else Modifier)
                             ) {
                                 Row(
@@ -198,12 +201,12 @@ fun SubtitleSettingsDialog(
                                     Icon(
                                         tab.icon,
                                         contentDescription = null,
-                                        tint = if (isSelected) Color.White else TextSecondary,
+                                        tint = LocalContentColor.current,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
                                         text = tab.title,
-                                        color = if (isSelected) Color.White else TextSecondary,
+                                        color = LocalContentColor.current,
                                         fontSize = 13.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )
@@ -233,6 +236,9 @@ fun SubtitleSettingsDialog(
                                         FocusableCard(
                                             onClick = { onSelectTrack(null) },
                                             containerColor = if (isNone) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = if (isNone) AccentSecondary else CardDark,
+                                            contentColor = if (isNone) BgDark else TextPrimary,
+                                            focusedContentColor = if (isNone) BgDark else TextPrimary,
                                             modifier = Modifier.fillMaxWidth().height(44.dp)
                                         ) {
                                             Row(
@@ -240,8 +246,8 @@ fun SubtitleSettingsDialog(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text("Off / None", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                                if (isNone) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Text("Off / None", color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                if (isNone) Icon(Icons.Default.Check, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -251,6 +257,9 @@ fun SubtitleSettingsDialog(
                                         FocusableCard(
                                             onClick = { onSelectTrack(track) },
                                             containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                                            contentColor = if (isSelected) BgDark else TextPrimary,
+                                            focusedContentColor = if (isSelected) BgDark else TextPrimary,
                                             modifier = Modifier.fillMaxWidth().height(44.dp)
                                         ) {
                                             Row(
@@ -258,8 +267,8 @@ fun SubtitleSettingsDialog(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(track.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Text(track.label, color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                if (isSelected) Icon(Icons.Default.Check, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -276,6 +285,9 @@ fun SubtitleSettingsDialog(
                                         FocusableCard(
                                             onClick = { onUpdateSettings(settings.copy(font = font)) },
                                             containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                                            contentColor = if (isSelected) BgDark else TextPrimary,
+                                            focusedContentColor = if (isSelected) BgDark else TextPrimary,
                                             modifier = Modifier.fillMaxWidth().height(44.dp)
                                         ) {
                                             Row(
@@ -283,8 +295,8 @@ fun SubtitleSettingsDialog(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(font.displayName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Text(font.displayName, color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                if (isSelected) Icon(Icons.Default.Check, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -301,6 +313,9 @@ fun SubtitleSettingsDialog(
                                         FocusableCard(
                                             onClick = { onUpdateSettings(settings.copy(size = size)) },
                                             containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                                            contentColor = if (isSelected) BgDark else TextPrimary,
+                                            focusedContentColor = if (isSelected) BgDark else TextPrimary,
                                             modifier = Modifier.fillMaxWidth().height(44.dp)
                                         ) {
                                             Row(
@@ -308,8 +323,8 @@ fun SubtitleSettingsDialog(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(size.displayName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Text(size.displayName, color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                if (isSelected) Icon(Icons.Default.Check, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -326,6 +341,9 @@ fun SubtitleSettingsDialog(
                                         FocusableCard(
                                             onClick = { onUpdateSettings(settings.copy(color = col)) },
                                             containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                                            contentColor = if (isSelected) BgDark else TextPrimary,
+                                            focusedContentColor = if (isSelected) BgDark else TextPrimary,
                                             modifier = Modifier.fillMaxWidth().height(44.dp)
                                         ) {
                                             Row(
@@ -335,9 +353,9 @@ fun SubtitleSettingsDialog(
                                             ) {
                                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     Box(modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)).background(Color(col.composeColor)))
-                                                    Text(col.displayName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                    Text(col.displayName, color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                                 }
-                                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                if (isSelected) Icon(Icons.Default.Check, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -354,6 +372,9 @@ fun SubtitleSettingsDialog(
                                         FocusableCard(
                                             onClick = { onUpdateSettings(settings.copy(backgroundStyle = bg)) },
                                             containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                                            contentColor = if (isSelected) BgDark else TextPrimary,
+                                            focusedContentColor = if (isSelected) BgDark else TextPrimary,
                                             modifier = Modifier.fillMaxWidth().height(44.dp)
                                         ) {
                                             Row(
@@ -361,8 +382,8 @@ fun SubtitleSettingsDialog(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(bg.displayName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Text(bg.displayName, color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                if (isSelected) Icon(Icons.Default.Check, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -379,6 +400,9 @@ fun SubtitleSettingsDialog(
                                         FocusableCard(
                                             onClick = { onUpdateSettings(settings.copy(position = pos)) },
                                             containerColor = if (isSelected) AccentPrimary else Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = if (isSelected) AccentSecondary else CardDark,
+                                            contentColor = if (isSelected) BgDark else TextPrimary,
+                                            focusedContentColor = if (isSelected) BgDark else TextPrimary,
                                             modifier = Modifier.fillMaxWidth().height(44.dp)
                                         ) {
                                             Row(
@@ -386,8 +410,8 @@ fun SubtitleSettingsDialog(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(pos.displayName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                                if (isSelected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Text(pos.displayName, color = LocalContentColor.current, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                if (isSelected) Icon(Icons.Default.Check, null, tint = LocalContentColor.current, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
