@@ -20,6 +20,7 @@ import com.dwplayer.data.daos.SmbShareDao
 import com.dwplayer.data.entities.SmbShareEntity
 import com.dwplayer.data.models.*
 import com.dwplayer.ui.player.PlayerActivity
+import com.dwplayer.ui.player.PlayerRemoteBridge
 import dagger.hilt.android.AndroidEntryPoint
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -47,6 +48,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.UUID
@@ -136,6 +138,31 @@ class KtorService : Service() {
                         }
 
                         route("/api") {
+                            get("/remote/status") {
+                                val status = withContext(Dispatchers.Main) { PlayerRemoteBridge.status() }
+                                call.respond(status)
+                            }
+
+                            post("/remote/{command}") {
+                                val command = call.parameters["command"]
+                                    ?: return@post call.respond(HttpStatusCode.BadRequest, ApiResponse("error", "Command required"))
+                                val handled = withContext(Dispatchers.Main) { PlayerRemoteBridge.send(command) }
+                                if (handled) call.respond(ApiResponse("success", "Remote command sent"))
+                                else call.respond(HttpStatusCode.Conflict, ApiResponse("error", "Player is not open"))
+                            }
+
+                            post("/play-url") {
+                                val req = call.receive<PlayUrlRequest>()
+                                if (req.url.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ApiResponse("error", "URL required"))
+                                val title = req.title?.ifBlank { null } ?: req.url.substringAfterLast('/').substringBefore('?').ifBlank { "Network video" }
+                                startActivity(Intent(this@KtorService, PlayerActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                    putExtra("MEDIA_URI", req.url)
+                                    putExtra("MEDIA_TITLE", title)
+                                })
+                                call.respond(ApiResponse("success", "Playing $title on TV"))
+                            }
+
                             // 1. Storage info
                             get("/storage/info") {
                                 val info = storageManager.getStorageInfo()

@@ -31,6 +31,8 @@ export ANDROID_HOME ANDROID_SDK_ROOT JAVA_HOME GRADLE_OPTS
 
 ADB_BIN="$ANDROID_SDK_ROOT/platform-tools/adb"
 EMU_BIN="$ANDROID_SDK_ROOT/emulator/emulator"
+EMU_LAUNCH_LABEL="com.dwplayer.android-tv-emulator"
+EMU_LOG_PATH="/tmp/dwplayer_android_tv_emulator.log"
 
 echo "Starting Android TV debug build and launch for dwPlayer..."
 echo "Using JAVA_HOME=$JAVA_HOME"
@@ -70,7 +72,18 @@ if [ -z "$SERIAL" ]; then
   fi
 
   echo "No online emulator found. Booting $AVD_NAME..."
-  nohup "$EMU_BIN" -avd "$AVD_NAME" -gpu swiftshader_indirect -no-snapshot-load -no-boot-anim >/tmp/dwplayer_android_tv_emulator.log 2>&1 &
+  # Launch through macOS launchd so the emulator is not killed when this script's
+  # terminal/process group exits (which happens for automated Codex runs).
+  launchctl remove "$EMU_LAUNCH_LABEL" >/dev/null 2>&1 || true
+  launchctl submit \
+    -l "$EMU_LAUNCH_LABEL" \
+    -o "$EMU_LOG_PATH" \
+    -e "$EMU_LOG_PATH" \
+    -- "$EMU_BIN" \
+    -avd "$AVD_NAME" \
+    -gpu swiftshader_indirect \
+    -no-snapshot-load \
+    -no-boot-anim
 
   for _ in $(seq 1 180); do
     SERIAL="$($ADB_BIN devices | awk '$1 ~ /^emulator-/ && $2 == "device" {print $1; exit}')"

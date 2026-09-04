@@ -26,6 +26,7 @@ import com.dwplayer.data.daos.DownloadTaskDao
 import com.dwplayer.data.daos.PlaylistDao
 import com.dwplayer.data.daos.SmbShareDao
 import com.dwplayer.data.entities.PlaylistItemEntity
+import com.dwplayer.data.models.RemotePlayerStatus
 import com.dwplayer.ui.theme.DwPlayerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
@@ -53,6 +54,29 @@ class PlayerActivity : ComponentActivity() {
     private var playlistItems by mutableStateOf<List<PlaylistItemEntity>>(emptyList())
     private var autoNextDismissed by mutableStateOf(false)
     private var hasEndedTransitioned by mutableStateOf(false)
+
+    private val remoteCommandHandler: (String) -> Boolean = { command ->
+        when (command) {
+            "play-pause" -> { videoPlayer.togglePlayPause(); true }
+            "play" -> { videoPlayer.exoPlayer.play(); true }
+            "pause" -> { videoPlayer.exoPlayer.pause(); true }
+            "forward" -> { performQuickSeek(10); true }
+            "backward" -> { performQuickSeek(-10); true }
+            "next" -> {
+                val index = playlistItems.indexOfFirst { it.id == currentItemId }
+                playlistItems.getOrNull(index + 1)?.let(::playPlaylistItem)
+                    ?: videoPlayer.exoPlayer.seekToNextMediaItem()
+                true
+            }
+            "previous" -> {
+                val index = playlistItems.indexOfFirst { it.id == currentItemId }
+                playlistItems.getOrNull(index - 1)?.let(::playPlaylistItem)
+                    ?: videoPlayer.exoPlayer.seekToPreviousMediaItem()
+                true
+            }
+            else -> false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -352,6 +376,25 @@ class PlayerActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        PlayerRemoteBridge.attach(remoteCommandHandler) {
+            val state = videoPlayer.uiState.value
+            RemotePlayerStatus(
+                playerActive = true,
+                isPlaying = state.isPlaying,
+                title = state.title,
+                positionMs = state.currentPositionMs,
+                durationMs = state.durationMs
+            )
+        }
+    }
+
+    override fun onStop() {
+        PlayerRemoteBridge.detach(remoteCommandHandler)
+        super.onStop()
     }
 
     override fun onDestroy() {

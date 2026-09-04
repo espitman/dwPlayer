@@ -4,7 +4,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DASHBOARD_DIR="$PROJECT_ROOT/dashboard"
-APK_PATH="$PROJECT_ROOT/app/build/outputs/apk/release/app-release.apk"
+APK_PATH="$PROJECT_ROOT/tv/build/outputs/apk/release/tv-release.apk"
 DESKTOP_DIR="$HOME/Desktop"
 OUT_APK="$DESKTOP_DIR/dwplayer-release.apk"
 
@@ -34,9 +34,9 @@ if [ ! -x "$PROJECT_ROOT/gradlew" ]; then
   exit 1
 fi
 
-if [ ! -f "$PROJECT_ROOT/app/dwplayer.jks" ]; then
-  echo "Generating release keystore at $PROJECT_ROOT/app/dwplayer.jks..."
-  keytool -genkeypair -v -keystore "$PROJECT_ROOT/app/dwplayer.jks" \
+if [ ! -f "$PROJECT_ROOT/tv/dwplayer.jks" ]; then
+  echo "Generating release keystore at $PROJECT_ROOT/tv/dwplayer.jks..."
+  keytool -genkeypair -v -keystore "$PROJECT_ROOT/tv/dwplayer.jks" \
     -alias dwplayer -keyalg RSA -keysize 2048 -validity 10000 \
     -storepass dwplayer123 -keypass dwplayer123 \
     -dname "CN=dwPlayer, OU=Android, O=dwPlayer, L=Tehran, ST=Tehran, C=IR"
@@ -63,10 +63,10 @@ fi
 
 echo "Building release APK..."
 cd "$PROJECT_ROOT"
-./gradlew --no-daemon assembleRelease
+./gradlew --no-daemon :tv:assembleRelease
 
 if [ ! -f "$APK_PATH" ]; then
-  APK_PATH="$(find "$PROJECT_ROOT/app/build/outputs/apk/release" -name "*.apk" -type f | sort | tail -1)"
+  APK_PATH="$(find "$PROJECT_ROOT/tv/build/outputs/apk/release" -name "*.apk" -type f | sort | tail -1)"
 fi
 
 if [ -z "${APK_PATH:-}" ] || [ ! -f "$APK_PATH" ]; then

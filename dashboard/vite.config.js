@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../app/src/main/resources/web',
+    outDir: '../tv/src/main/resources/web',
     emptyOutDir: true,
   },
 })

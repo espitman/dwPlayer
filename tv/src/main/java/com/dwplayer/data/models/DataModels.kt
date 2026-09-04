@@ -200,3 +200,18 @@ data class WebDavPlayRequest(
     val fileUrl: String,
     val title: String? = null
 )
+
+@Serializable
+data class PlayUrlRequest(
+    val url: String,
+    val title: String? = null
+)
+
+@Serializable
+data class RemotePlayerStatus(
+    val playerActive: Boolean = false,
+    val isPlaying: Boolean = false,
+    val title: String = "",
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L
+)

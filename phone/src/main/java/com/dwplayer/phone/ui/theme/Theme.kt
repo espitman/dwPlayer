@@ -9,8 +9,8 @@ private val DarkColorScheme = darkColorScheme(
     secondary = AccentCyan,
     background = BgDark,
     surface = SurfaceDark,
-    onPrimary = TextPrimary,
-    onSecondary = TextPrimary,
+    onPrimary = BgDark,
+    onSecondary = BgDark,
     onBackground = TextPrimary,
     onSurface = TextPrimary
 )

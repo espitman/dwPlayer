@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import com.dwplayer.phone.ui.screens.HomeScreen
 import com.dwplayer.phone.ui.theme.DwPhoneTheme
 import com.dwplayer.phone.ui.viewmodel.PhoneViewModel
@@ -28,6 +29,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = android.graphics.Color.rgb(16, 21, 18)
+        window.navigationBarColor = android.graphics.Color.rgb(16, 21, 18)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
         requestRequiredPermissions()
 
         setContent {
